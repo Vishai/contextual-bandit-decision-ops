@@ -1,8 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "contextual-bandit-decision-ops"
 version = "0.1.0"
 description = "Deterministic contextual bandit simulation and decision operations."
+readme = "README.md"
 requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "fastapi",
     "httpx",
@@ -29,6 +43,7 @@ contextual-bandit-ope = "contextual_bandit_decision_ops.off_policy_cli:main"
 contextual-bandit-gate = "contextual_bandit_decision_ops.promotion_cli:main"
 contextual-bandit-service = "contextual_bandit_decision_ops.service_cli:main"
 contextual-bandit-observe = "contextual_bandit_decision_ops.observability_cli:main"
+contextual-bandit-info = "contextual_bandit_decision_ops.metadata_cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

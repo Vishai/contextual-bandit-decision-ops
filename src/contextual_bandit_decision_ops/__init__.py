@@ -8,6 +8,7 @@ from .config import (
 from .evaluation import PolicyEvaluation, compare_policies
 from .learning_evaluation import LearningEvaluation, compare_learning_policies
 from .learning_policies import LinearThompsonSamplingPolicy, LinUCBPolicy
+from .metadata_cli import project_version
 from .off_policy import OffPolicyEvaluationRun, run_off_policy_evaluation
 from .drift_monitoring import ObservabilityConfig, ObservabilityRun, run_observability
 from .policies import (
@@ -23,7 +24,10 @@ from .schemas import BanditEvent, UserContext
 from .simulation import generate_synthetic_bandit_log, simulate_bandit_events
 from .smoke import project_name
 
+__version__ = project_version()
+
 __all__ = [
+    "__version__",
     "BanditEvent",
     "ConstrainedPolicy",
     "DecisionService",

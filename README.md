@@ -2,6 +2,40 @@
 
 A small, production-style foundation for deterministic contextual bandit simulation.
 
+## Quickstart
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+make install
+make check
+make demo
+```
+
+Show installed release metadata with `contextual-bandit-info`; print only the version with
+`contextual-bandit-info --version`.
+
+## Reviewer path
+
+1. Run `make check` for the complete test and lint suite.
+2. Run `make demo` to regenerate all six deterministic Markdown reports.
+3. Read `reports/policy_promotion_gate.md` and
+   `reports/staging_observability_report.md` for the safety/operations story.
+4. Run `contextual-bandit-service --smoke-test` for the in-process API path.
+5. Optionally run `make docker-smoke` when Docker is available.
+
+## Command summary
+
+| Command | Purpose |
+| --- | --- |
+| `make install` | Install the package and development tools |
+| `make check` | Run pytest and Ruff |
+| `make demo` | Regenerate tracked deterministic reports |
+| `make docker-build` | Build the CPU-only local service image |
+| `make docker-smoke` | Build, run, health-check, and clean up the image |
+| `contextual-bandit-info` | Print package/release metadata |
+| `contextual-bandit-service --smoke-test` | Exercise the API entirely in process |
+
 ## Generate a synthetic log
 
 ```bash
@@ -111,8 +145,26 @@ reward, context, propensity, feedback-coverage, and exploration changes. It writ
 Pass four `--reference-*` and `--current-*` JSONL paths to analyze local service logs instead
 of fixtures. The checks are transparent local/staging diagnostics, not production monitoring.
 
+## Docker
+
+```bash
+make docker-build
+make docker-smoke
+```
+
+The image uses Python 3.11 slim, installs only CPU dependencies, runs as an unprivileged user,
+exposes port 8000, and includes a `/health` check. Docker is optional for local quality checks.
+
 ## Development
 
 ```bash
 make check
 ```
+
+## Current limitations
+
+- All evaluation, promotion, and drift evidence is synthetic or local staging data.
+- The API has no production authentication, durable database, or distributed coordination.
+- Monitoring is report-based rather than a live alerting system.
+- The Docker image is a local demonstration target, not a cloud deployment.
+- CI covers install, tests, lint, and CLI smoke behavior; it does not publish releases.
