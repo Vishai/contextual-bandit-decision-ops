@@ -28,6 +28,7 @@ contextual-bandit-learn = "contextual_bandit_decision_ops.learning_cli:main"
 contextual-bandit-ope = "contextual_bandit_decision_ops.off_policy_cli:main"
 contextual-bandit-gate = "contextual_bandit_decision_ops.promotion_cli:main"
 contextual-bandit-service = "contextual_bandit_decision_ops.service_cli:main"
+contextual-bandit-observe = "contextual_bandit_decision_ops.observability_cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

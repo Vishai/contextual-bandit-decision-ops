@@ -9,6 +9,7 @@ from .evaluation import PolicyEvaluation, compare_policies
 from .learning_evaluation import LearningEvaluation, compare_learning_policies
 from .learning_policies import LinearThompsonSamplingPolicy, LinUCBPolicy
 from .off_policy import OffPolicyEvaluationRun, run_off_policy_evaluation
+from .drift_monitoring import ObservabilityConfig, ObservabilityRun, run_observability
 from .policies import (
     EpsilonGreedyPolicy,
     FixedActionPolicy,
@@ -35,6 +36,8 @@ __all__ = [
     "LinUCBPolicy",
     "OffPolicyEvaluationConfig",
     "OffPolicyEvaluationRun",
+    "ObservabilityConfig",
+    "ObservabilityRun",
     "PolicyComparisonConfig",
     "PolicyConstraints",
     "PolicyEvaluation",
@@ -50,6 +53,7 @@ __all__ = [
     "generate_synthetic_bandit_log",
     "project_name",
     "run_off_policy_evaluation",
+    "run_observability",
     "run_promotion_gate",
     "simulate_bandit_events",
 ]

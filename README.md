@@ -96,6 +96,21 @@ contextual-bandit-service --smoke-test
 
 This serving layer has no production authentication, deployment, or monitoring guarantees.
 
+## Generate a staging observability report
+
+```bash
+contextual-bandit-observe
+```
+
+This compares deterministic reference/current decision and feedback windows for action,
+reward, context, propensity, feedback-coverage, and exploration changes. It writes:
+
+- `reports/staging_observability_report.md`
+- `artifacts/staging_observability_report.json`
+
+Pass four `--reference-*` and `--current-*` JSONL paths to analyze local service logs instead
+of fixtures. The checks are transparent local/staging diagnostics, not production monitoring.
+
 ## Development
 
 ```bash
