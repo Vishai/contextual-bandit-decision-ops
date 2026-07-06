@@ -1,6 +1,24 @@
 # Contextual Bandit Decision Ops
 
-A small, production-style foundation for deterministic contextual bandit simulation.
+An end-to-end, deterministic reference project for contextual bandit decisions:
+simulate, learn, evaluate logged policies, apply safety gates, serve decisions, and
+monitor local/staging behavior.
+
+**Release 0.1.0:** portfolio-ready for local review; **HOLD** for real-world policy
+promotion. All reward evidence is synthetic, and the API is deliberately
+staging-only.
+
+## What this demonstrates
+
+- Reproducible comparison of baselines, LinUCB, and Linear Thompson Sampling
+- Propensity-aware replay, IPS, SNIPS, and doubly robust evaluation
+- Promotion decisions that include exploration, coverage, capacity, support, and
+  regret—not reward alone
+- A typed FastAPI decision/feedback contract with local observability
+- CPU-only Docker, CI, release metadata, and one-command quality/demo paths
+
+Start with the [0.1.0 release summary](reports/portfolio/release_0.1.0.md), then
+read the [policy card](docs/policy_card.md) for the evidence and launch decision.
 
 ## Quickstart
 
@@ -8,7 +26,7 @@ A small, production-style foundation for deterministic contextual bandit simulat
 python -m venv .venv
 source .venv/bin/activate
 make install
-make check
+make release-check
 make demo
 ```
 
@@ -17,11 +35,11 @@ Show installed release metadata with `contextual-bandit-info`; print only the ve
 
 ## Reviewer path
 
-1. Run `make check` for the complete test and lint suite.
-2. Run `make demo` to regenerate all six deterministic Markdown reports.
-3. Read `reports/policy_promotion_gate.md` and
-   `reports/staging_observability_report.md` for the safety/operations story.
-4. Run `contextual-bandit-service --smoke-test` for the in-process API path.
+1. Read the [portfolio release summary](reports/portfolio/release_0.1.0.md).
+2. Run `make release-check` for tests, lint, metadata, API smoke, and release files.
+3. Run `make demo` to regenerate all six deterministic Markdown reports.
+4. Read [the promotion gate](reports/policy_promotion_gate.md) and
+   [observability report](reports/staging_observability_report.md).
 5. Optionally run `make docker-smoke` when Docker is available.
 
 ## Command summary
@@ -30,7 +48,9 @@ Show installed release metadata with `contextual-bandit-info`; print only the ve
 | --- | --- |
 | `make install` | Install the package and development tools |
 | `make check` | Run pytest and Ruff |
+| `make smoke` | Exercise the API entirely in process |
 | `make demo` | Regenerate tracked deterministic reports |
+| `make release-check` | Run lightweight release verification without Docker |
 | `make docker-build` | Build the CPU-only local service image |
 | `make docker-smoke` | Build, run, health-check, and clean up the image |
 | `contextual-bandit-info` | Print package/release metadata |
@@ -160,6 +180,17 @@ exposes port 8000, and includes a `/health` check. Docker is optional for local 
 ```bash
 make check
 ```
+
+## Documentation
+
+| Document | Reviewer question |
+| --- | --- |
+| [Architecture](docs/architecture.md) | How do simulation, evaluation, serving, and monitoring connect? |
+| [Policy card](docs/policy_card.md) | What is intended, measured, constrained, and approved? |
+| [Evaluation methodology](docs/evaluation_methodology.md) | What do the estimators and regret metrics mean? |
+| [Operations](docs/operations.md) | How is the local/staging system run and diagnosed? |
+| [Release checklist](docs/release_checklist.md) | What is verified, and what is intentionally incomplete? |
+| [Interview notes](docs/interview_notes.md) | What are the main design choices and tradeoffs? |
 
 ## Current limitations
 
