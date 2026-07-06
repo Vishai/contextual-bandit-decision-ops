@@ -30,6 +30,22 @@ greedy-oracle, and configurable epsilon-greedy baselines. It writes:
 The comparison is an offline simulator benchmark, not real online learning or causal
 off-policy evaluation. Use `contextual-bandit-compare --help` to change its configuration.
 
+## Compare contextual learning policies
+
+```bash
+contextual-bandit-learn
+```
+
+This runs a deterministic sequential simulation comparing random-uniform, online
+epsilon-greedy, LinUCB, linear Thompson Sampling, and a greedy-oracle upper bound. It writes:
+
+- `reports/contextual_learning_policy_comparison.md`
+- `artifacts/contextual_learning_policy_comparison.json`
+
+LinUCB and Thompson Sampling update from each observed reward. This is still an online-style
+simulation, not a production online-learning service. Use `contextual-bandit-learn --help`
+to change its configuration.
+
 ## Development
 
 ```bash

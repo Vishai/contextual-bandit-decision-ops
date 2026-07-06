@@ -50,3 +50,34 @@ class PolicyComparisonConfig:
             raise ValueError("epsilon must be between 0 and 1")
         object.__setattr__(self, "report_md", Path(self.report_md))
         object.__setattr__(self, "artifact_json", Path(self.artifact_json))
+
+
+@dataclass(frozen=True)
+class LearningComparisonConfig:
+    n_events: int = 5_000
+    seed: int = 42
+    n_actions: int = 3
+    epsilon: float = 0.1
+    linucb_alpha: float = 0.5
+    thompson_scale: float = 0.25
+    regularization: float = 1.0
+    report_md: Path | str = Path("reports/contextual_learning_policy_comparison.md")
+    artifact_json: Path | str = Path("artifacts/contextual_learning_policy_comparison.json")
+
+    def __post_init__(self) -> None:
+        if self.n_events <= 0:
+            raise ValueError("n_events must be positive")
+        if self.n_actions <= 0:
+            raise ValueError("n_actions must be positive")
+        if self.seed < 0:
+            raise ValueError("seed must be non-negative")
+        if not 0.0 <= self.epsilon <= 1.0:
+            raise ValueError("epsilon must be between 0 and 1")
+        if self.linucb_alpha < 0.0:
+            raise ValueError("linucb_alpha must be non-negative")
+        if self.thompson_scale <= 0.0:
+            raise ValueError("thompson_scale must be positive")
+        if self.regularization <= 0.0:
+            raise ValueError("regularization must be positive")
+        object.__setattr__(self, "report_md", Path(self.report_md))
+        object.__setattr__(self, "artifact_json", Path(self.artifact_json))

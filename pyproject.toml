@@ -21,6 +21,7 @@ target-version = "py311"
 [project.scripts]
 contextual-bandit-generate = "contextual_bandit_decision_ops.cli:main"
 contextual-bandit-compare = "contextual_bandit_decision_ops.comparison_cli:main"
+contextual-bandit-learn = "contextual_bandit_decision_ops.learning_cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
