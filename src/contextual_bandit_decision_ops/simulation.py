@@ -8,36 +8,31 @@ import pandas as pd
 
 from .config import SimulationConfig
 from .event_log import write_event_log
-from .schemas import REGIONS, BanditEvent
+from .schemas import REGIONS, BanditEvent, UserContext
 from .synthetic import generate_user_contexts
 from .validation import validate_event_log
 
 
-def _reward_probability(age: float, engagement: float, region: str, action: int) -> float:
-    base_probability = 0.08 + (0.25 * engagement) + (0.0015 * (age - 18.0))
+def reward_probability(context: UserContext, action: int) -> float:
+    base_probability = 0.08 + (0.25 * context.engagement) + (0.0015 * (context.age - 18.0))
     action_uplift = (
-        0.06 * (action == 0 and engagement < 0.5)
-        + 0.12 * (action == 1 and region in {"north", "east"})
-        + 0.10 * (action == 2 and engagement >= 0.5)
+        0.06 * (action == 0 and context.engagement < 0.5)
+        + 0.12 * (action == 1 and context.region in {"north", "east"})
+        + 0.10 * (action == 2 and context.engagement >= 0.5)
     )
     return float(np.clip(base_probability + action_uplift, 0.01, 0.95))
 
 
 def simulate_bandit_events(config: SimulationConfig) -> list[BanditEvent]:
     rng = np.random.default_rng(config.seed)
-    contexts = generate_user_contexts(config, rng)
+    contexts = generate_user_contexts(config.n_events, rng)
     events: list[BanditEvent] = []
     base_time = config.base_timestamp
 
     for index, context in enumerate(contexts):
         action = int(rng.integers(0, config.n_actions))
-        reward_probability = _reward_probability(
-            context.age,
-            context.engagement,
-            context.region,
-            action,
-        )
-        reward = int(rng.random() < reward_probability)
+        action_reward_probability = reward_probability(context, action)
+        reward = int(rng.random() < action_reward_probability)
 
         event = BanditEvent(
             event_id=f"event-{config.seed}-{index:06d}",
@@ -47,7 +42,7 @@ def simulate_bandit_events(config: SimulationConfig) -> list[BanditEvent]:
             context_region=context.region,
             action=action,
             reward=reward,
-            reward_probability=reward_probability,
+            reward_probability=action_reward_probability,
             propensity=1.0 / config.n_actions,
             timestamp=(base_time + timedelta(minutes=index)).isoformat(),
             seed=config.seed,
