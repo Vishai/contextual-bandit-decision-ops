@@ -78,6 +78,24 @@ The default decision is deliberately conservative: synthetic evidence alone cann
 promotion. This is simulated launch-readiness logic, not real-world safety certification. Use
 `contextual-bandit-gate --help` to inspect configurable thresholds.
 
+## Run the local decision API
+
+```bash
+contextual-bandit-service --host 127.0.0.1 --port 8000
+```
+
+The local/staging-only FastAPI service exposes `GET /health`, `GET /policy`, `POST /decide`,
+`POST /feedback`, and `GET /metrics`. Decisions and feedback are appended to ignored local
+JSONL files under `logs/`.
+
+Run the deterministic API smoke path entirely in process:
+
+```bash
+contextual-bandit-service --smoke-test
+```
+
+This serving layer has no production authentication, deployment, or monitoring guarantees.
+
 ## Development
 
 ```bash

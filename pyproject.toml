@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "Deterministic contextual bandit simulation and decision operations."
 requires-python = ">=3.11"
 dependencies = [
+    "fastapi",
+    "httpx",
     "numpy",
     "pandas",
+    "uvicorn",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +27,7 @@ contextual-bandit-compare = "contextual_bandit_decision_ops.comparison_cli:main"
 contextual-bandit-learn = "contextual_bandit_decision_ops.learning_cli:main"
 contextual-bandit-ope = "contextual_bandit_decision_ops.off_policy_cli:main"
 contextual-bandit-gate = "contextual_bandit_decision_ops.promotion_cli:main"
+contextual-bandit-service = "contextual_bandit_decision_ops.service_cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

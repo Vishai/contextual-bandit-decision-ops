@@ -1,3 +1,4 @@
+from .api import create_app
 from .config import (
     LearningComparisonConfig,
     OffPolicyEvaluationConfig,
@@ -16,6 +17,7 @@ from .policies import (
 )
 from .promotion_gate import PromotionGateConfig, PromotionGateRun, run_promotion_gate
 from .safety import ConstrainedPolicy, PolicyConstraints
+from .service import DecisionService, ServiceConfig
 from .schemas import BanditEvent, UserContext
 from .simulation import generate_synthetic_bandit_log, simulate_bandit_events
 from .smoke import project_name
@@ -23,6 +25,7 @@ from .smoke import project_name
 __all__ = [
     "BanditEvent",
     "ConstrainedPolicy",
+    "DecisionService",
     "EpsilonGreedyPolicy",
     "FixedActionPolicy",
     "GreedyOraclePolicy",
@@ -39,9 +42,11 @@ __all__ = [
     "PromotionGateConfig",
     "PromotionGateRun",
     "SimulationConfig",
+    "ServiceConfig",
     "UserContext",
     "compare_learning_policies",
     "compare_policies",
+    "create_app",
     "generate_synthetic_bandit_log",
     "project_name",
     "run_off_policy_evaluation",

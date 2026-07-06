@@ -5,4 +5,5 @@ __pycache__/
 data/raw/
 data/processed/
 artifacts/
+logs/
 *.egg-info/
