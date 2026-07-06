@@ -14,12 +14,15 @@ from .policies import (
     GreedyOraclePolicy,
     RandomUniformPolicy,
 )
+from .promotion_gate import PromotionGateConfig, PromotionGateRun, run_promotion_gate
+from .safety import ConstrainedPolicy, PolicyConstraints
 from .schemas import BanditEvent, UserContext
 from .simulation import generate_synthetic_bandit_log, simulate_bandit_events
 from .smoke import project_name
 
 __all__ = [
     "BanditEvent",
+    "ConstrainedPolicy",
     "EpsilonGreedyPolicy",
     "FixedActionPolicy",
     "GreedyOraclePolicy",
@@ -30,8 +33,11 @@ __all__ = [
     "OffPolicyEvaluationConfig",
     "OffPolicyEvaluationRun",
     "PolicyComparisonConfig",
+    "PolicyConstraints",
     "PolicyEvaluation",
     "RandomUniformPolicy",
+    "PromotionGateConfig",
+    "PromotionGateRun",
     "SimulationConfig",
     "UserContext",
     "compare_learning_policies",
@@ -39,5 +45,6 @@ __all__ = [
     "generate_synthetic_bandit_log",
     "project_name",
     "run_off_policy_evaluation",
+    "run_promotion_gate",
     "simulate_bandit_events",
 ]

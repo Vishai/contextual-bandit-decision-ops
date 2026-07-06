@@ -62,6 +62,22 @@ The report includes matching and effective-sample-size diagnostics plus simulato
 synthetic reference. It is not evidence of production policy quality. Use
 `contextual-bandit-ope --help` to change its configuration.
 
+## Run the policy promotion gate
+
+```bash
+contextual-bandit-gate
+```
+
+This applies blocked-action, action-share, exploration, coverage, OPE support, improvement,
+and regret checks to candidate policies. It writes:
+
+- `reports/policy_promotion_gate.md`
+- `artifacts/policy_promotion_gate.json`
+
+The default decision is deliberately conservative: synthetic evidence alone cannot authorize
+promotion. This is simulated launch-readiness logic, not real-world safety certification. Use
+`contextual-bandit-gate --help` to inspect configurable thresholds.
+
 ## Development
 
 ```bash
