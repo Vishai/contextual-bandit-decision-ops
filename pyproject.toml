@@ -1,0 +1,26 @@
+[project]
+name = "contextual-bandit-decision-ops"
+version = "0.1.0"
+description = "Contextual bandit decision system with simulation, off-policy evaluation, serving, and monitoring."
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
