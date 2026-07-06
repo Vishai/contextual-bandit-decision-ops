@@ -46,6 +46,22 @@ LinUCB and Thompson Sampling update from each observed reward. This is still an 
 simulation, not a production online-learning service. Use `contextual-bandit-learn --help`
 to change its configuration.
 
+## Evaluate policies from logged data
+
+```bash
+contextual-bandit-ope
+```
+
+This generates deterministic uniform-policy logs and compares target policies using the
+direct logged average, replay matching, IPS, SNIPS, and doubly robust estimators. It writes:
+
+- `reports/off_policy_evaluation.md`
+- `artifacts/off_policy_evaluation.json`
+
+The report includes matching and effective-sample-size diagnostics plus simulator truth as a
+synthetic reference. It is not evidence of production policy quality. Use
+`contextual-bandit-ope --help` to change its configuration.
+
 ## Development
 
 ```bash

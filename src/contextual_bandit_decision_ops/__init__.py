@@ -1,7 +1,13 @@
-from .config import LearningComparisonConfig, PolicyComparisonConfig, SimulationConfig
+from .config import (
+    LearningComparisonConfig,
+    OffPolicyEvaluationConfig,
+    PolicyComparisonConfig,
+    SimulationConfig,
+)
 from .evaluation import PolicyEvaluation, compare_policies
 from .learning_evaluation import LearningEvaluation, compare_learning_policies
 from .learning_policies import LinearThompsonSamplingPolicy, LinUCBPolicy
+from .off_policy import OffPolicyEvaluationRun, run_off_policy_evaluation
 from .policies import (
     EpsilonGreedyPolicy,
     FixedActionPolicy,
@@ -21,6 +27,8 @@ __all__ = [
     "LearningEvaluation",
     "LinearThompsonSamplingPolicy",
     "LinUCBPolicy",
+    "OffPolicyEvaluationConfig",
+    "OffPolicyEvaluationRun",
     "PolicyComparisonConfig",
     "PolicyEvaluation",
     "RandomUniformPolicy",
@@ -30,5 +38,6 @@ __all__ = [
     "compare_policies",
     "generate_synthetic_bandit_log",
     "project_name",
+    "run_off_policy_evaluation",
     "simulate_bandit_events",
 ]

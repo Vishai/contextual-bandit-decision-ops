@@ -21,6 +21,14 @@ class BanditPolicy(Protocol):
     ) -> int: ...
 
 
+class ProbabilisticBanditPolicy(BanditPolicy, Protocol):
+    def action_probabilities(
+        self,
+        context: UserContext,
+        available_actions: Sequence[int],
+    ) -> dict[int, float]: ...
+
+
 def _actions_tuple(available_actions: Sequence[int]) -> tuple[int, ...]:
     actions = tuple(available_actions)
     if not actions:
@@ -44,6 +52,15 @@ class RandomUniformPolicy:
         actions = _actions_tuple(available_actions)
         return actions[int(rng.integers(0, len(actions)))]
 
+    def action_probabilities(
+        self,
+        context: UserContext,
+        available_actions: Sequence[int],
+    ) -> dict[int, float]:
+        del context
+        actions = _actions_tuple(available_actions)
+        return {action: 1.0 / len(actions) for action in actions}
+
 
 @dataclass(frozen=True)
 class FixedActionPolicy:
@@ -65,6 +82,17 @@ class FixedActionPolicy:
             raise ValueError(f"fixed action {self.action} is unavailable")
         return self.action
 
+    def action_probabilities(
+        self,
+        context: UserContext,
+        available_actions: Sequence[int],
+    ) -> dict[int, float]:
+        del context
+        actions = _actions_tuple(available_actions)
+        if self.action not in actions:
+            raise ValueError(f"fixed action {self.action} is unavailable")
+        return {action: float(action == self.action) for action in actions}
+
 
 @dataclass(frozen=True)
 class GreedyOraclePolicy:
@@ -81,6 +109,18 @@ class GreedyOraclePolicy:
         del rng
         actions = _actions_tuple(available_actions)
         return max(actions, key=lambda action: reward_probability(context, action))
+
+    def action_probabilities(
+        self,
+        context: UserContext,
+        available_actions: Sequence[int],
+    ) -> dict[int, float]:
+        actions = _actions_tuple(available_actions)
+        greedy_action = max(
+            actions,
+            key=lambda action: reward_probability(context, action),
+        )
+        return {action: float(action == greedy_action) for action in actions}
 
 
 @dataclass(frozen=True)
@@ -105,3 +145,17 @@ class EpsilonGreedyPolicy:
         if rng.random() < self.epsilon:
             return actions[int(rng.integers(0, len(actions)))]
         return GreedyOraclePolicy().choose_action(context, actions, rng)
+
+    def action_probabilities(
+        self,
+        context: UserContext,
+        available_actions: Sequence[int],
+    ) -> dict[int, float]:
+        actions = _actions_tuple(available_actions)
+        probabilities = {action: self.epsilon / len(actions) for action in actions}
+        greedy_action = max(
+            actions,
+            key=lambda action: reward_probability(context, action),
+        )
+        probabilities[greedy_action] += 1.0 - self.epsilon
+        return probabilities
