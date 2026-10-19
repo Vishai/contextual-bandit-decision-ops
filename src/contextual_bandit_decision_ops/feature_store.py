@@ -9,7 +9,13 @@ from pathlib import Path
 from types import TracebackType
 from typing import Self
 
-from .offer_features import OfferContext
+from .feature_sql import (
+    FEATURE_QUERY,
+    LATEST_USER_FEATURES_QUERY,
+    MATERIALIZE_QUERY,
+    SNAPSHOT_QUERY,
+)
+from .offer_features import OfferContext, context_from_mapping
 
 SQL_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -242,6 +248,46 @@ class FeatureStore:
 
     def commit(self) -> None:
         self.connection.commit()
+
+    def compute_features(self, as_of: datetime) -> list[OfferContext]:
+        """Run the feature SQL without saving anything."""
+        rows = self.connection.execute(
+            FEATURE_QUERY + " ORDER BY u.user_id",
+            {"as_of": to_sql_timestamp(as_of)},
+        ).fetchall()
+        return [context_from_mapping(dict(row)) for row in rows]
+
+    def materialize_features(self, as_of: datetime) -> int:
+        """Save one feature row per known user as of ``as_of``. Rerunning is idempotent."""
+        cursor = self.connection.execute(MATERIALIZE_QUERY, {"as_of": to_sql_timestamp(as_of)})
+        self.connection.commit()
+        return cursor.rowcount
+
+    def snapshot(self, as_of: datetime) -> dict[str, OfferContext]:
+        rows = self.connection.execute(
+            SNAPSHOT_QUERY,
+            {"as_of": to_sql_timestamp(as_of)},
+        ).fetchall()
+        return {row["user_id"]: context_from_mapping(dict(row)) for row in rows}
+
+    def latest_features(
+        self,
+        user_id: str,
+        as_of: datetime | None = None,
+    ) -> OfferContext | None:
+        """Most recent materialized features for one user, as the serving path sees them."""
+        cutoff = to_sql_timestamp(as_of or datetime.now(UTC))
+        row = self.connection.execute(
+            LATEST_USER_FEATURES_QUERY,
+            {"user_id": user_id, "as_of": cutoff},
+        ).fetchone()
+        return None if row is None else context_from_mapping(dict(row))
+
+    def snapshot_times(self) -> list[datetime]:
+        rows = self.connection.execute(
+            "SELECT DISTINCT as_of FROM user_features ORDER BY as_of"
+        ).fetchall()
+        return [from_sql_timestamp(row[0]) for row in rows]
 
     def table_counts(self) -> dict[str, int]:
         return {
