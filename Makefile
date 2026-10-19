@@ -1,4 +1,4 @@
-.PHONY: install test lint check smoke demo release-check docker-build docker-smoke
+.PHONY: install test lint check smoke demo release-check docker-build docker-smoke deploy-aws retrain-aws tf-validate
 
 PYTHON ?= python
 IMAGE_NAME ?= contextual-bandit-decision-ops:local
@@ -40,3 +40,14 @@ docker-build:
 
 docker-smoke:
 	IMAGE_NAME="$(IMAGE_NAME)" bash scripts/docker_smoke_test.sh
+
+deploy-aws:
+	bash scripts/deploy_aws.sh
+
+retrain-aws:
+	bash scripts/retrain_aws.sh
+
+tf-validate:
+	terraform -chdir=infra/aws init -backend=false -input=false
+	terraform -chdir=infra/aws fmt -check
+	terraform -chdir=infra/aws validate
