@@ -159,6 +159,7 @@ def evaluate_offline(
     truth: ConversionModel | None = None,
     propensity_samples: int = 500,
     bootstrap_samples: int = 300,
+    baseline: str = BASELINE,
 ) -> dict[str, OfflineEstimate]:
     """Estimate each frozen policy's conversion and revenue on held-out logs.
 
@@ -166,7 +167,8 @@ def evaluate_offline(
     reward model (the posterior mean of a logistic fit on the training window) to
     cut variance. When the logs come from the simulator, pass ``truth`` and every
     estimate is also checked against the true expected value of the same policy.
-    Production retraining has no truth, so those fields stay None.
+    Production retraining has no truth, so those fields stay None. Lift
+    intervals are paired bootstrap intervals against the ``baseline`` policy.
     """
     if not events:
         raise ValueError("there are no held-out events to evaluate on")
@@ -234,12 +236,12 @@ def evaluate_offline(
             ),
         }
 
-    baseline_conversion = per_event_conversion.get(BASELINE)
-    baseline_revenue = per_event_revenue.get(BASELINE)
+    baseline_conversion = per_event_conversion.get(baseline)
+    baseline_revenue = per_event_revenue.get(baseline)
     estimates: dict[str, OfflineEstimate] = {}
     for name, numbers in partial.items():
         conversion_ci = revenue_ci = None
-        if baseline_conversion is not None and baseline_revenue is not None and name != BASELINE:
+        if baseline_conversion is not None and baseline_revenue is not None and name != baseline:
             conversion_ci = _bootstrap_lift(
                 per_event_conversion[name], baseline_conversion, rng, bootstrap_samples, False
             )
