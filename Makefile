@@ -1,4 +1,4 @@
-.PHONY: install test lint check smoke demo release-check docker-build docker-smoke deploy-aws retrain-aws tf-validate
+.PHONY: install test lint check smoke demo offer-demo offer-smoke latency release-check docker-build docker-smoke deploy-aws retrain-aws tf-validate
 
 PYTHON ?= python
 IMAGE_NAME ?= contextual-bandit-decision-ops:local
@@ -20,7 +20,16 @@ smoke:
 demo:
 	bash scripts/generate_demo.sh
 
-release-check: check smoke
+offer-demo:
+	bash scripts/generate_offer_reports.sh
+
+offer-smoke:
+	contextual-bandit-offer-service --smoke-test
+
+latency:
+	contextual-bandit-latency
+
+release-check: check smoke offer-smoke
 	contextual-bandit-info --version
 	bash -n scripts/generate_demo.sh
 	bash -n scripts/docker_smoke_test.sh
@@ -34,6 +43,11 @@ release-check: check smoke
 	test -f docs/release_checklist.md
 	test -f docs/interview_notes.md
 	test -f reports/portfolio/release_0.1.0.md
+	test -f docs/offer_recommendation.md
+	test -f infra/aws/README.md
+	bash -n scripts/generate_offer_reports.sh
+	bash -n scripts/deploy_aws.sh
+	bash -n scripts/retrain_aws.sh
 
 docker-build:
 	docker build --tag "$(IMAGE_NAME)" .

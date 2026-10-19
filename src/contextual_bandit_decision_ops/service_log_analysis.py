@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from .monitoring_metrics import (
     NumericFeatureSummary,
@@ -46,7 +47,7 @@ def load_jsonl(path: Path) -> tuple[dict[str, Any], ...]:
             continue
         record = json.loads(line)
         if not isinstance(record, dict):
-            raise ValueError(f"{path}:{line_number} must contain a JSON object")
+            raise ValueError(f"{path}:{line_number} must contain a JSON object")  # noqa: TRY004
         records.append(record)
     return tuple(records)
 
@@ -87,7 +88,7 @@ def analyze_service_logs(
         propensities.append(float(_required(record, "propensity", "decision")))
         context = _required(record, "context", "decision")
         if not isinstance(context, dict):
-            raise ValueError("decision context must be a JSON object")
+            raise ValueError("decision context must be a JSON object")  # noqa: TRY004
         ages.append(float(_required(context, "age", "decision context")))
         engagements.append(float(_required(context, "engagement", "decision context")))
         regions.append(str(_required(context, "region", "decision context")))

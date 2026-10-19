@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Hashable, Sequence
 from dataclasses import dataclass
 from math import isfinite
-from typing import Hashable, Sequence, TypeVar
+from typing import TypeVar
 
 import numpy as np
 

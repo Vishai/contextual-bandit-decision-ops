@@ -4,7 +4,7 @@
 
 | Item | Value |
 | --- | --- |
-| New model version | offer-ts-20261019T193312Z |
+| New model version | offer-ts-20261019T195959Z |
 | Previous model version | none |
 | Data window | 2025-02-28T23:58:43+00:00 to 2025-03-28T23:58:43+00:00 |
 | Training events | 13,448 |
@@ -40,4 +40,4 @@ more than the allowed margin.
 
 | Recorded at | Status | Version | Reason |
 | --- | --- | --- | --- |
-| 2026-10-19T19:33:13.106372+00:00 | promoted | offer-ts-20261019T193312Z |  |
+| 2026-10-19T19:59:59.713921+00:00 | promoted | offer-ts-20261019T195959Z |  |

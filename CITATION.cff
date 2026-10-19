@@ -2,19 +2,21 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it using this metadata."
 title: "Contextual Bandit Decision Ops"
 type: software
-version: 0.1.0
-date-released: 2026-07-06
+version: 0.2.0
+date-released: 2026-10-19
 authors:
   - name: "Contextual Bandit Decision Ops contributors"
 license: MIT
-repository-code: "https://github.com/AkshajKashyap/contextual-bandit-decision-ops"
+repository-code: "https://github.com/Vishai/contextual-bandit-decision-ops"
 abstract: >-
-  A deterministic, CPU-only reference implementation for contextual bandit
-  simulation, learning, off-policy evaluation, promotion gates, staging serving,
-  and local observability.
+  A real-time offer recommendation system built on contextual Bayesian Thompson
+  Sampling, with SQL feature pipelines, a FastAPI service, offline policy
+  evaluation and backtesting, scenario simulations, automated retraining,
+  monitoring, and AWS deployment.
 keywords:
   - contextual bandits
   - off-policy evaluation
   - LinUCB
   - Thompson Sampling
+  - offer recommendation
   - decision systems
