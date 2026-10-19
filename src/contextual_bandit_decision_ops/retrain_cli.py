@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sqlite3
 import sys
 import time
 from pathlib import Path
@@ -41,17 +42,27 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="If the store doesn't exist, fill it with synthetic history from the rule-based system",
     )
+    parser.add_argument("--demo-days", type=int, default=28, help="History length for the demo")
     parser.add_argument("--report-md", type=Path, default=Path("reports/retraining_run.md"))
     return parser
 
 
 def bootstrap_demo_store(path: Path, days: int = 28, seed: int = 5) -> int:
+    """Build the demo history in memory, then copy it to disk in one go, which is
+    much faster than writing it row by row to a file."""
     truth = default_conversion_model()
     catalog = truth.catalog
-    store, population = build_feature_store(ActivityConfig(simulation_days=days), path)
+    store, population = build_feature_store(ActivityConfig(simulation_days=days))
     with store:
         logging_policy = EpsilonExplorationPolicy(RuleBasedOfferPolicy(catalog), catalog, 0.2)
-        return log_historical_decisions(store, population, truth, logging_policy, seed)
+        logged = log_historical_decisions(store, population, truth, logging_policy, seed)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        target = sqlite3.connect(path)
+        try:
+            store.connection.backup(target)
+        finally:
+            target.close()
+    return logged
 
 
 def render_report(run: RetrainingRun, registry: ModelRegistry) -> str:
@@ -151,7 +162,7 @@ def run_once(args: argparse.Namespace) -> RetrainingRun:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.bootstrap_demo_store and not args.store.exists():
-        logged = bootstrap_demo_store(args.store)
+        logged = bootstrap_demo_store(args.store, days=args.demo_days)
         print(f"Created {args.store} with {logged:,} logged decisions from the rule-based system")
     runs = 0
     while True:
