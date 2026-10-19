@@ -48,6 +48,7 @@ contextual-bandit-gate = "contextual_bandit_decision_ops.promotion_cli:main"
 contextual-bandit-service = "contextual_bandit_decision_ops.service_cli:main"
 contextual-bandit-observe = "contextual_bandit_decision_ops.observability_cli:main"
 contextual-bandit-info = "contextual_bandit_decision_ops.metadata_cli:main"
+contextual-bandit-features = "contextual_bandit_decision_ops.feature_pipeline_cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
