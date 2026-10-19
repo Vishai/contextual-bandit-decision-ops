@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 import httpx
 import numpy as np
@@ -15,6 +15,7 @@ from .model_registry import ModelRegistry
 from .offer_backtest import OfflineEstimate, evaluate_offline
 from .offer_features import context_from_mapping
 from .offer_history import LoggedOfferEvent, load_logged_events
+from .offer_logs import read_service_logs
 from .offer_policies import RuleBasedOfferPolicy
 from .offers import OfferCatalog, default_offer_catalog
 
@@ -84,21 +85,6 @@ class RetrainingRun:
     service_reloaded: bool | None = None
 
 
-def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
-
-
-def _log_files(path: Path | None, file_name: str) -> list[Path]:
-    """A single log file, or every matching file under a folder (one per service task)."""
-    if path is None:
-        return []
-    if path.is_dir():
-        return sorted(path.rglob(file_name))
-    return [path]
-
-
 def _sql_time(value: str) -> str:
     return to_sql_timestamp(datetime.fromisoformat(value))
 
@@ -117,12 +103,7 @@ def ingest_service_logs(
     Feedback logged without a revenue gets the catalog revenue of the offer shown.
     """
     catalog = catalog or default_offer_catalog()
-    decisions = [
-        record for path in _log_files(decision_log, "decisions.jsonl") for record in _read_jsonl(path)
-    ]
-    feedback = [
-        record for path in _log_files(feedback_log, "feedback.jsonl") for record in _read_jsonl(path)
-    ]
+    decisions, feedback = read_service_logs(decision_log, feedback_log)
     inserted = applied = unmatched = 0
     connection = store.connection
     for record in decisions:
