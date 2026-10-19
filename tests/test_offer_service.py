@@ -256,3 +256,9 @@ def test_latency_benchmark_passes_budget(tmp_path: Path) -> None:
                          "--artifact-json", str(tmp_path / "latency.json")])
     assert code == 0
     assert "**Result: PASS.**" in report.read_text(encoding="utf-8")
+
+
+def test_event_ids_stay_unique_across_restarts(tmp_path: Path) -> None:
+    (first,) = call(make_app(tmp_path), ("POST", "/decide", decide_body()))
+    (second,) = call(make_app(tmp_path), ("POST", "/decide", decide_body()))
+    assert first.json()["event_id"] != second.json()["event_id"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import uuid
 from collections import OrderedDict, deque
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -146,6 +147,9 @@ class OfferDecisionService:
             if self.config.feature_store_path is not None
             else None
         )
+        # Event ids have to stay unique across restarts, or ingesting the logs later
+        # would mix up decisions from different runs.
+        self.run_id = uuid.uuid4().hex[:12]
         seeds = np.random.SeedSequence(self.config.seed).spawn(2)
         self.choice_rng = np.random.default_rng(seeds[0])
         self.propensity_rng = np.random.default_rng(seeds[1])
@@ -251,7 +255,7 @@ class OfferDecisionService:
             propensity = min(1.0, max(propensity, 1.0 / self.config.propensity_samples))
             posterior = self.policy.posterior(context, offer_id)
             timestamp = self.clock().astimezone(UTC)
-            event_id = f"offer-{self.config.seed}-{self.decision_count:010d}"
+            event_id = f"offer-{self.run_id}-{self.decision_count:010d}"
             latency_ms = (time.perf_counter() - started) * 1_000.0
 
             self.pending[event_id] = _PendingDecision(context, offer_id)
