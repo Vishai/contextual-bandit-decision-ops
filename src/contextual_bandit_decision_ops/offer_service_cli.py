@@ -48,6 +48,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Serve a frozen posterior and only learn through retraining",
     )
+    parser.add_argument(
+        "--model-poll-seconds",
+        type=float,
+        default=defaults.model_poll_seconds,
+        help="Check the model artifact for a new version this often; 0 turns it off",
+    )
     parser.add_argument("--smoke-test", action="store_true", help="Exercise the API and exit")
     return parser
 
@@ -55,8 +61,8 @@ def build_parser() -> argparse.ArgumentParser:
 def config_from_args(args: argparse.Namespace) -> OfferServiceConfig:
     model_artifact = args.model_artifact
     if model_artifact is not None and not model_artifact.exists():
-        print(f"Model artifact {model_artifact} not found, starting untrained", file=sys.stderr)
-        model_artifact = None
+        note = "will load it once it appears" if args.model_poll_seconds > 0 else "serving untrained"
+        print(f"Model artifact {model_artifact} not found yet, {note}", file=sys.stderr)
     return OfferServiceConfig(
         seed=args.seed,
         environment=args.environment,
@@ -67,6 +73,7 @@ def config_from_args(args: argparse.Namespace) -> OfferServiceConfig:
         exploration_floor=args.exploration_floor,
         latency_budget_ms=args.latency_budget_ms,
         online_updates=not args.no_online_updates,
+        model_poll_seconds=args.model_poll_seconds,
     )
 
 

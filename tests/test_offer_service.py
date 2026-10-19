@@ -262,3 +262,22 @@ def test_event_ids_stay_unique_across_restarts(tmp_path: Path) -> None:
     (first,) = call(make_app(tmp_path), ("POST", "/decide", decide_body()))
     (second,) = call(make_app(tmp_path), ("POST", "/decide", decide_body()))
     assert first.json()["event_id"] != second.json()["event_id"]
+
+
+def test_service_polls_for_new_model_versions(tmp_path: Path) -> None:
+    artifact = tmp_path / "models" / "latest.json"
+    app = make_app(tmp_path, model_artifact_path=artifact, model_poll_seconds=0.001)
+    service = app.state.offer_service
+    (before,) = call(app, ("POST", "/decide", decide_body()))
+    assert before.json()["model_version"] == "untrained"
+
+    save_policy_artifact(BayesianLogisticThompsonSampling(CATALOG), artifact, "v1")
+    service._next_poll = 0.0
+    (after,) = call(app, ("POST", "/decide", decide_body()))
+    assert after.json()["model_version"] == "v1"
+
+    artifact.write_text("{not json", encoding="utf-8")
+    service._next_poll = 0.0
+    (still,) = call(app, ("POST", "/decide", decide_body()))
+    assert still.status_code == 200
+    assert still.json()["model_version"] == "v1"

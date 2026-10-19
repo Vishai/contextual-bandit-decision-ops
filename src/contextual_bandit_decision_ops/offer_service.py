@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 import uuid
 from collections import OrderedDict, deque
@@ -67,6 +68,7 @@ class OfferServiceConfig:
     latency_window: int = 10_000
     max_pending_decisions: int = 200_000
     online_updates: bool = True
+    model_poll_seconds: float = 0.0
 
     def __post_init__(self) -> None:
         if self.seed < 0:
@@ -77,6 +79,8 @@ class OfferServiceConfig:
             raise ValueError("propensity_samples must be positive")
         if self.latency_budget_ms <= 0:
             raise ValueError("latency_budget_ms must be positive")
+        if self.model_poll_seconds < 0:
+            raise ValueError("model_poll_seconds must be non-negative")
         if self.latency_window <= 0 or self.max_pending_decisions <= 0:
             raise ValueError("latency_window and max_pending_decisions must be positive")
         object.__setattr__(self, "decision_log_path", Path(self.decision_log_path))
@@ -159,7 +163,10 @@ class OfferDecisionService:
         self.model_created_at: str | None = None
         self.model_source: str | None = None
         self.model_metadata: dict[str, Any] = {}
-        if policy is None and self.config.model_artifact_path is not None:
+        self._artifact_mtime: int | None = None
+        self._next_poll = time.monotonic() + self.config.model_poll_seconds
+        artifact_path = self.config.model_artifact_path
+        if policy is None and artifact_path is not None and Path(artifact_path).exists():
             self.reload_model()
 
         self.pending: OrderedDict[str, _PendingDecision] = OrderedDict()
@@ -180,14 +187,39 @@ class OfferDecisionService:
         source = Path(path) if path is not None else self.config.model_artifact_path
         if source is None:
             raise FileNotFoundError("no model artifact path is configured")
+        modified = os.stat(source).st_mtime_ns
         artifact = load_policy_artifact(source, self.catalog)
         with self.lock:
+            self._artifact_mtime = modified
             self.policy = artifact.policy
             self.model_version = artifact.model_version
             self.model_created_at = artifact.created_at
             self.model_source = str(source)
             self.model_metadata = artifact.metadata
         return self.model_version
+
+    def maybe_reload(self) -> bool:
+        """Pick up a newly promoted model without a restart.
+
+        With several service tasks behind a load balancer, a single reload call
+        only reaches one of them, so each task also checks the artifact's
+        modification time every ``model_poll_seconds``. A broken or half-copied
+        artifact is ignored and the current model keeps serving.
+        """
+        path = self.config.model_artifact_path
+        if self.config.model_poll_seconds <= 0 or path is None:
+            return False
+        now = time.monotonic()
+        if now < self._next_poll:
+            return False
+        self._next_poll = now + self.config.model_poll_seconds
+        try:
+            if os.stat(path).st_mtime_ns == self._artifact_mtime:
+                return False
+            self.reload_model()
+        except (OSError, ValueError, KeyError):
+            return False
+        return True
 
     def model_info(self) -> ModelInfoResponse:
         with self.lock:
@@ -238,6 +270,7 @@ class OfferDecisionService:
         return self.catalog.validate_subset(request.available_offers or self.catalog.offer_ids)
 
     def decide(self, request: OfferDecisionRequest) -> OfferDecisionResponse:
+        self.maybe_reload()
         started = time.perf_counter()
         context, source = self.resolve_context(request)
         offers = self._offers(request)
