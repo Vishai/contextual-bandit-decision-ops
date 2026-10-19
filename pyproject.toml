@@ -55,6 +55,7 @@ contextual-bandit-scenarios = "contextual_bandit_decision_ops.scenario_cli:main"
 contextual-bandit-offer-service = "contextual_bandit_decision_ops.offer_service_cli:main"
 contextual-bandit-latency = "contextual_bandit_decision_ops.latency_benchmark:main"
 contextual-bandit-retrain = "contextual_bandit_decision_ops.retrain_cli:main"
+contextual-bandit-monitor = "contextual_bandit_decision_ops.monitoring_cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
