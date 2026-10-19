@@ -267,3 +267,25 @@ def test_retrain_cli_bootstraps_and_reports(tmp_path: Path) -> None:
     assert "# Retraining Run" in text
     assert "Promotion gate" in text
     assert (tmp_path / "models" / "latest.json").exists()
+
+
+def test_ingest_reads_every_task_log_folder(tmp_path: Path) -> None:
+    context = new_user_context("u1", "tablet", "west").to_dict()
+    for task, event_id in (("task-a", "a1"), ("task-b", "b1")):
+        folder = tmp_path / "logs" / task
+        folder.mkdir(parents=True)
+        (folder / "decisions.jsonl").write_text(
+            json.dumps({"event_id": event_id, "user_id": "u1", "context": context,
+                        "offer_id": "free_shipping", "propensity": 0.5,
+                        "timestamp": "2025-03-02T09:00:00+00:00"}) + "\n",
+            encoding="utf-8",
+        )
+    (tmp_path / "logs" / "task-b" / "feedback.jsonl").write_text(
+        json.dumps({"event_id": "a1", "converted": True, "revenue": 38.0,
+                    "timestamp": "2025-03-02T10:00:00+00:00"}) + "\n",
+        encoding="utf-8",
+    )
+    with FeatureStore() as store:
+        summary = ingest_service_logs(store, tmp_path / "logs", tmp_path / "logs")
+    assert (summary.decisions_read, summary.decisions_inserted) == (2, 2)
+    assert summary.feedback_applied == 1

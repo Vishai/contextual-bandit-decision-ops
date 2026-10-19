@@ -90,6 +90,15 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
 
 
+def _log_files(path: Path | None, file_name: str) -> list[Path]:
+    """A single log file, or every matching file under a folder (one per service task)."""
+    if path is None:
+        return []
+    if path.is_dir():
+        return sorted(path.rglob(file_name))
+    return [path]
+
+
 def _sql_time(value: str) -> str:
     return to_sql_timestamp(datetime.fromisoformat(value))
 
@@ -99,9 +108,18 @@ def ingest_service_logs(
     decision_log: Path | None,
     feedback_log: Path | None,
 ) -> IngestSummary:
-    """Load the service's JSONL logs into ``offer_events``. Running it twice is harmless."""
-    decisions = _read_jsonl(decision_log) if decision_log else []
-    feedback = _read_jsonl(feedback_log) if feedback_log else []
+    """Load the service's JSONL logs into ``offer_events``. Running it twice is harmless.
+
+    Either argument can be a folder, in which case every ``decisions.jsonl`` or
+    ``feedback.jsonl`` under it is read. All decisions go in before any feedback,
+    so feedback logged by a different task than its decision still matches up.
+    """
+    decisions = [
+        record for path in _log_files(decision_log, "decisions.jsonl") for record in _read_jsonl(path)
+    ]
+    feedback = [
+        record for path in _log_files(feedback_log, "feedback.jsonl") for record in _read_jsonl(path)
+    ]
     inserted = applied = unmatched = 0
     connection = store.connection
     for record in decisions:
