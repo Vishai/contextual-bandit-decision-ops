@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -18,6 +19,8 @@ from .feature_sql import (
 from .offer_features import OfferContext, context_from_mapping
 
 SQL_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
+JOURNAL_MODE_ENV = "FEATURE_STORE_JOURNAL_MODE"
+JOURNAL_MODES = frozenset({"WAL", "DELETE", "TRUNCATE", "PERSIST"})
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS users (
@@ -121,16 +124,26 @@ class PurchaseRecord:
 class FeatureStore:
     """SQLite store for raw user activity, logged offer events and feature snapshots."""
 
-    def __init__(self, path: Path | str = ":memory:") -> None:
+    def __init__(self, path: Path | str = ":memory:", journal_mode: str | None = None) -> None:
+        """Open or create a store.
+
+        File-backed stores default to WAL, which is fast locally but relies on
+        shared memory and does not work on network filesystems such as EFS. Pass
+        ``journal_mode="DELETE"`` or set FEATURE_STORE_JOURNAL_MODE there.
+        """
         self.path = str(path)
+        mode = (journal_mode or os.environ.get(JOURNAL_MODE_ENV) or "WAL").upper()
+        if mode not in JOURNAL_MODES:
+            raise ValueError(f"journal_mode must be one of {sorted(JOURNAL_MODES)}")
         if self.path != ":memory:":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(self.path, check_same_thread=False)
+        self.connection = sqlite3.connect(self.path, check_same_thread=False, timeout=30.0)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
         if self.path != ":memory:":
-            self.connection.execute("PRAGMA journal_mode = WAL")
+            self.connection.execute(f"PRAGMA journal_mode = {mode}")
             self.connection.execute("PRAGMA synchronous = NORMAL")
+        self.journal_mode = mode
         self.create_schema()
 
     def __enter__(self) -> Self:

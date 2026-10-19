@@ -196,3 +196,18 @@ def test_cli_builds_store_and_report(tmp_path: Path) -> None:
     assert "| `users` | 120 |" in text
     with FeatureStore(db) as feature_store:
         assert len(feature_store.snapshot_times()) == 3
+
+
+def test_journal_mode_can_be_set_for_network_filesystems(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with FeatureStore(tmp_path / "default.sqlite") as store:
+        mode = store.connection.execute("PRAGMA journal_mode").fetchone()[0]
+        assert mode.upper() == "WAL"
+    monkeypatch.setenv("FEATURE_STORE_JOURNAL_MODE", "delete")
+    with FeatureStore(tmp_path / "efs.sqlite") as store:
+        mode = store.connection.execute("PRAGMA journal_mode").fetchone()[0]
+        assert mode.upper() == "DELETE"
+        assert store.journal_mode == "DELETE"
+    with pytest.raises(ValueError, match="journal_mode"):
+        FeatureStore(tmp_path / "bad.sqlite", journal_mode="MEMORY; DROP TABLE users")
