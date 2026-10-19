@@ -108,7 +108,7 @@ class GreedyOfferPolicy(BayesianLogisticThompsonSampling):
 
     @property
     def name(self) -> str:
-        return "greedy"
+        return self.label or "greedy"
 
     def _scores(
         self,
@@ -148,7 +148,7 @@ class UCBOfferPolicy(BayesianLogisticThompsonSampling):
 
     @property
     def name(self) -> str:
-        return "ucb"
+        return self.label or "ucb"
 
     def _scores(
         self,
