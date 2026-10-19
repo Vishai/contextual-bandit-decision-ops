@@ -6,7 +6,10 @@ import pytest
 from contextual_bandit_decision_ops.cli import main
 from contextual_bandit_decision_ops.config import SimulationConfig
 from contextual_bandit_decision_ops.schemas import EVENT_COLUMNS
-from contextual_bandit_decision_ops.simulation import generate_synthetic_bandit_log, simulate_bandit_events
+from contextual_bandit_decision_ops.simulation import (
+    generate_synthetic_bandit_log,
+    simulate_bandit_events,
+)
 from contextual_bandit_decision_ops.validation import validate_bandit_event
 
 

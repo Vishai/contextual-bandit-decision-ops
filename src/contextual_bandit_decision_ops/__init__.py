@@ -5,12 +5,12 @@ from .config import (
     PolicyComparisonConfig,
     SimulationConfig,
 )
+from .drift_monitoring import ObservabilityConfig, ObservabilityRun, run_observability
 from .evaluation import PolicyEvaluation, compare_policies
 from .learning_evaluation import LearningEvaluation, compare_learning_policies
 from .learning_policies import LinearThompsonSamplingPolicy, LinUCBPolicy
 from .metadata_cli import project_version
 from .off_policy import OffPolicyEvaluationRun, run_off_policy_evaluation
-from .drift_monitoring import ObservabilityConfig, ObservabilityRun, run_observability
 from .policies import (
     EpsilonGreedyPolicy,
     FixedActionPolicy,
@@ -19,15 +19,14 @@ from .policies import (
 )
 from .promotion_gate import PromotionGateConfig, PromotionGateRun, run_promotion_gate
 from .safety import ConstrainedPolicy, PolicyConstraints
-from .service import DecisionService, ServiceConfig
 from .schemas import BanditEvent, UserContext
+from .service import DecisionService, ServiceConfig
 from .simulation import generate_synthetic_bandit_log, simulate_bandit_events
 from .smoke import project_name
 
 __version__ = project_version()
 
 __all__ = [
-    "__version__",
     "BanditEvent",
     "ConstrainedPolicy",
     "DecisionService",
@@ -36,28 +35,29 @@ __all__ = [
     "GreedyOraclePolicy",
     "LearningComparisonConfig",
     "LearningEvaluation",
-    "LinearThompsonSamplingPolicy",
     "LinUCBPolicy",
-    "OffPolicyEvaluationConfig",
-    "OffPolicyEvaluationRun",
+    "LinearThompsonSamplingPolicy",
     "ObservabilityConfig",
     "ObservabilityRun",
+    "OffPolicyEvaluationConfig",
+    "OffPolicyEvaluationRun",
     "PolicyComparisonConfig",
     "PolicyConstraints",
     "PolicyEvaluation",
-    "RandomUniformPolicy",
     "PromotionGateConfig",
     "PromotionGateRun",
-    "SimulationConfig",
+    "RandomUniformPolicy",
     "ServiceConfig",
+    "SimulationConfig",
     "UserContext",
+    "__version__",
     "compare_learning_policies",
     "compare_policies",
     "create_app",
     "generate_synthetic_bandit_log",
     "project_name",
-    "run_off_policy_evaluation",
     "run_observability",
+    "run_off_policy_evaluation",
     "run_promotion_gate",
     "simulate_bandit_events",
 ]
