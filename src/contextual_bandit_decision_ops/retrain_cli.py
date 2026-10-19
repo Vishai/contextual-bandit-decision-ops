@@ -6,6 +6,7 @@ import sys
 import time
 from pathlib import Path
 
+from .feature_store import FeatureStore
 from .model_registry import ModelRegistry
 from .offer_history import log_historical_decisions
 from .offer_policies import EpsilonExplorationPolicy, RuleBasedOfferPolicy
@@ -40,7 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--bootstrap-demo-store",
         action="store_true",
-        help="If the store doesn't exist, fill it with synthetic history from the rule-based system",
+        help="If the store has no history yet, fill it with synthetic rule-based history",
     )
     parser.add_argument("--demo-days", type=int, default=28, help="History length for the demo")
     parser.add_argument("--report-md", type=Path, default=Path("reports/retraining_run.md"))
@@ -63,6 +64,13 @@ def bootstrap_demo_store(path: Path, days: int = 28, seed: int = 5) -> int:
         finally:
             target.close()
     return logged
+
+
+def store_has_history(path: Path) -> bool:
+    if not path.exists():
+        return False
+    with FeatureStore(path) as store:
+        return store.table_counts()["offer_events"] > 0
 
 
 def render_report(run: RetrainingRun, registry: ModelRegistry) -> str:
@@ -161,7 +169,7 @@ def run_once(args: argparse.Namespace) -> RetrainingRun:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.bootstrap_demo_store and not args.store.exists():
+    if args.bootstrap_demo_store and not store_has_history(args.store):
         logged = bootstrap_demo_store(args.store, days=args.demo_days)
         print(f"Created {args.store} with {logged:,} logged decisions from the rule-based system")
     runs = 0

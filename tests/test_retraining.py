@@ -306,3 +306,15 @@ def test_ingest_fills_in_revenue_for_unmatched_feedback(tmp_path: Path) -> None:
         revenue = store.connection.execute(
             "SELECT revenue FROM offer_events WHERE event_id = 'x1'").fetchone()[0]
     assert revenue == CATALOG.revenue("premium_trial")
+
+
+def test_bootstrap_also_fills_an_empty_store(tmp_path: Path) -> None:
+    empty = tmp_path / "service-created.sqlite"
+    FeatureStore(empty).close()
+    code = retrain_main(["--store", str(empty), "--bootstrap-demo-store", "--demo-days", "6",
+                         "--model-dir", str(tmp_path / "models"),
+                         "--report-md", str(tmp_path / "run.md"),
+                         "--min-training-events", "300"])
+    assert code == 0
+    with FeatureStore(empty) as store:
+        assert store.table_counts()["offer_events"] > 0
