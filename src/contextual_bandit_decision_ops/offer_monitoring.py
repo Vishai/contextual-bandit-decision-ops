@@ -47,6 +47,7 @@ class MonitoringThresholds:
     min_feedback_coverage: float = 0.8
     min_propensity: float = 0.005
     conversion_drop_warn_pts: float = 2.0
+    revenue_drop_warn: float = 0.1
     regret_increase_warn: float = 0.25
 
 
@@ -358,6 +359,16 @@ def _checks(
                 f"({change:+.2f} pts)",
             )
         )
+    if reference.revenue_per_decision and current.revenue_per_decision is not None:
+        change = current.revenue_per_decision / reference.revenue_per_decision - 1.0
+        checks.append(
+            MonitoringCheck(
+                "revenue_change",
+                "warn" if change <= -thresholds.revenue_drop_warn else "ok",
+                f"{reference.revenue_per_decision:.3f} to {current.revenue_per_decision:.3f} "
+                f"per decision ({change:+.0%})",
+            )
+        )
     if reference.estimated_regret_per_decision and current.estimated_regret_per_decision is not None:
         increase = current.estimated_regret_per_decision / reference.estimated_regret_per_decision - 1
         checks.append(
@@ -366,6 +377,17 @@ def _checks(
                 "warn" if increase > thresholds.regret_increase_warn else "ok",
                 f"{reference.estimated_regret_per_decision:.3f} to "
                 f"{current.estimated_regret_per_decision:.3f} per decision ({increase:+.0%})",
+            )
+        )
+    if reference.true_regret_per_decision and current.true_regret_per_decision is not None:
+        increase = current.true_regret_per_decision / reference.true_regret_per_decision - 1
+        checks.append(
+            MonitoringCheck(
+                "true_regret_simulation",
+                "warn" if increase > thresholds.regret_increase_warn else "ok",
+                f"{reference.true_regret_per_decision:.3f} to "
+                f"{current.true_regret_per_decision:.3f} per decision ({increase:+.0%}); "
+                "only measurable in simulation",
             )
         )
     return checks
