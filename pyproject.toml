@@ -52,6 +52,8 @@ contextual-bandit-features = "contextual_bandit_decision_ops.feature_pipeline_cl
 contextual-bandit-offers = "contextual_bandit_decision_ops.offer_comparison_cli:main"
 contextual-bandit-backtest = "contextual_bandit_decision_ops.backtest_cli:main"
 contextual-bandit-scenarios = "contextual_bandit_decision_ops.scenario_cli:main"
+contextual-bandit-offer-service = "contextual_bandit_decision_ops.offer_service_cli:main"
+contextual-bandit-latency = "contextual_bandit_decision_ops.latency_benchmark:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
