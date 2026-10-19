@@ -6,7 +6,7 @@ import sys
 from importlib.metadata import PackageNotFoundError, version
 
 PROJECT_NAME = "contextual-bandit-decision-ops"
-SOURCE_VERSION = "0.1.0"
+SOURCE_VERSION = "0.2.0"
 
 
 def project_version() -> str:
