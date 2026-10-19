@@ -281,3 +281,19 @@ def test_service_polls_for_new_model_versions(tmp_path: Path) -> None:
     (still,) = call(app, ("POST", "/decide", decide_body()))
     assert still.status_code == 200
     assert still.json()["model_version"] == "v1"
+
+
+def test_feedback_from_another_replica_is_logged_for_retraining(tmp_path: Path) -> None:
+    app = make_app(tmp_path, log_unmatched_feedback=True)
+    first, duplicate = call(
+        app,
+        ("POST", "/feedback", {"event_id": "offer-other-task-1", "converted": True}),
+        ("POST", "/feedback", {"event_id": "offer-other-task-1", "converted": True}),
+    )
+    assert first.status_code == 200
+    assert first.json()["status"] == "logged"
+    assert first.json()["posterior_updated"] is False
+    assert duplicate.status_code == 409
+    record = json.loads((tmp_path / "feedback.jsonl").read_text(encoding="utf-8"))
+    assert record["matched"] is False
+    assert record["revenue"] is None

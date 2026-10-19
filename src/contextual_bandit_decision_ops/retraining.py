@@ -107,13 +107,16 @@ def ingest_service_logs(
     store: FeatureStore,
     decision_log: Path | None,
     feedback_log: Path | None,
+    catalog: OfferCatalog | None = None,
 ) -> IngestSummary:
     """Load the service's JSONL logs into ``offer_events``. Running it twice is harmless.
 
     Either argument can be a folder, in which case every ``decisions.jsonl`` or
     ``feedback.jsonl`` under it is read. All decisions go in before any feedback,
     so feedback logged by a different task than its decision still matches up.
+    Feedback logged without a revenue gets the catalog revenue of the offer shown.
     """
+    catalog = catalog or default_offer_catalog()
     decisions = [
         record for path in _log_files(decision_log, "decisions.jsonl") for record in _read_jsonl(path)
     ]
@@ -139,16 +142,20 @@ def ingest_service_logs(
             ),
         )
         inserted += cursor.rowcount
+    revenue_by_offer = {offer.offer_id: offer.revenue_per_conversion for offer in catalog.offers}
     for record in feedback:
+        converted = bool(record["converted"])
+        revenue = record.get("revenue")
+        if revenue is None:
+            row = connection.execute(
+                "SELECT offer_id FROM offer_events WHERE event_id = ?", (record["event_id"],)
+            ).fetchone()
+            offer_id = row[0] if row else None
+            revenue = revenue_by_offer.get(offer_id, 0.0) if converted else 0.0
         cursor = connection.execute(
             "UPDATE offer_events SET converted = ?, revenue = ?, feedback_at = ? "
             "WHERE event_id = ? AND converted IS NULL",
-            (
-                int(bool(record["converted"])),
-                float(record["revenue"]),
-                _sql_time(record["timestamp"]),
-                record["event_id"],
-            ),
+            (int(converted), float(revenue), _sql_time(record["timestamp"]), record["event_id"]),
         )
         if cursor.rowcount:
             applied += 1
@@ -280,6 +287,7 @@ def retrain(
             store,
             Path(config.decision_log) if config.decision_log else None,
             Path(config.feedback_log) if config.feedback_log else None,
+            offer_catalog,
         )
         window_end = _latest_decision_time(store)
         if window_end is None:

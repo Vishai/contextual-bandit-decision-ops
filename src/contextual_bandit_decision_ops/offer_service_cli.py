@@ -54,6 +54,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=defaults.model_poll_seconds,
         help="Check the model artifact for a new version this often; 0 turns it off",
     )
+    parser.add_argument(
+        "--log-unmatched-feedback",
+        action="store_true",
+        help="Log feedback for decisions made by another replica instead of returning 404",
+    )
     parser.add_argument("--smoke-test", action="store_true", help="Exercise the API and exit")
     return parser
 
@@ -74,6 +79,7 @@ def config_from_args(args: argparse.Namespace) -> OfferServiceConfig:
         latency_budget_ms=args.latency_budget_ms,
         online_updates=not args.no_online_updates,
         model_poll_seconds=args.model_poll_seconds,
+        log_unmatched_feedback=args.log_unmatched_feedback,
     )
 
 

@@ -69,6 +69,7 @@ class OfferServiceConfig:
     max_pending_decisions: int = 200_000
     online_updates: bool = True
     model_poll_seconds: float = 0.0
+    log_unmatched_feedback: bool = False
 
     def __post_init__(self) -> None:
         if self.seed < 0:
@@ -340,7 +341,9 @@ class OfferDecisionService:
                 raise DuplicateFeedbackError(request.event_id)
             decision = self.pending.pop(request.event_id, None)
             if decision is None:
-                raise UnknownDecisionEventError(request.event_id)
+                if not self.config.log_unmatched_feedback:
+                    raise UnknownDecisionEventError(request.event_id)
+                return self._log_unmatched_feedback(request)
             revenue = request.revenue
             if revenue is None:
                 revenue = self.catalog.revenue(decision.offer_id) if request.converted else 0.0
@@ -371,6 +374,37 @@ class OfferDecisionService:
             event_id=request.event_id,
             status="accepted",
             posterior_updated=updated,
+            timestamp=timestamp,
+        )
+
+    def _log_unmatched_feedback(self, request: OfferFeedbackRequest) -> OfferFeedbackResponse:
+        """Keep feedback for a decision this process never saw.
+
+        With several tasks behind a load balancer, feedback can reach a different
+        task than the one that made the decision. That task cannot update its
+        posterior, but it logs the outcome so the next retraining run still learns
+        from it. The caller holds the lock.
+        """
+        self.completed[request.event_id] = None
+        while len(self.completed) > self.config.max_pending_decisions:
+            self.completed.popitem(last=False)
+        timestamp = self.clock().astimezone(UTC)
+        self.logger.log_feedback(
+            {
+                "event_id": request.event_id,
+                "user_id": None,
+                "offer_id": None,
+                "converted": request.converted,
+                "revenue": request.revenue,
+                "matched": False,
+                "timestamp": timestamp.isoformat(),
+                "metadata": request.metadata or {},
+            }
+        )
+        return OfferFeedbackResponse(
+            event_id=request.event_id,
+            status="logged",
+            posterior_updated=False,
             timestamp=timestamp,
         )
 

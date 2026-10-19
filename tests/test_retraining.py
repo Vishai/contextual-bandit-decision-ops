@@ -289,3 +289,20 @@ def test_ingest_reads_every_task_log_folder(tmp_path: Path) -> None:
         summary = ingest_service_logs(store, tmp_path / "logs", tmp_path / "logs")
     assert (summary.decisions_read, summary.decisions_inserted) == (2, 2)
     assert summary.feedback_applied == 1
+
+
+def test_ingest_fills_in_revenue_for_unmatched_feedback(tmp_path: Path) -> None:
+    context = new_user_context("u1", "mobile", "north").to_dict()
+    decisions = tmp_path / "decisions.jsonl"
+    feedback = tmp_path / "feedback.jsonl"
+    decisions.write_text(json.dumps({
+        "event_id": "x1", "user_id": "u1", "context": context, "offer_id": "premium_trial",
+        "propensity": 0.4, "timestamp": "2025-03-03T09:00:00+00:00"}) + "\n", encoding="utf-8")
+    feedback.write_text(json.dumps({
+        "event_id": "x1", "converted": True, "revenue": None, "matched": False,
+        "timestamp": "2025-03-03T09:30:00+00:00"}) + "\n", encoding="utf-8")
+    with FeatureStore() as store:
+        ingest_service_logs(store, decisions, feedback)
+        revenue = store.connection.execute(
+            "SELECT revenue FROM offer_events WHERE event_id = 'x1'").fetchone()[0]
+    assert revenue == CATALOG.revenue("premium_trial")
