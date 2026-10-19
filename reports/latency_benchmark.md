@@ -8,9 +8,9 @@ feature store and outcomes from the simulator's true conversion model.
 
 | Call | Count | p50 ms | p95 ms | p99 ms | Max ms | Within budget |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| POST /decide (client) | 2,000 | 2.11 | 2.99 | 3.61 | 74.06 | 100.00% |
-| POST /decide (server) | 2,000 | 1.34 | 1.96 | 2.47 | 73.21 | 100.00% |
-| POST /feedback (client) | 2,000 | 1.78 | 2.54 | 3.17 | 42.98 | 100.00% |
+| POST /decide (client) | 2,000 | 2.22 | 3.59 | 5.84 | 14.09 | 100.00% |
+| POST /decide (server) | 2,000 | 1.42 | 2.34 | 3.67 | 11.51 | 100.00% |
+| POST /feedback (client) | 2,000 | 1.86 | 3.15 | 5.05 | 47.90 | 100.00% |
 
 Client timing covers the full request through the HTTP stack. Server timing comes
 from the `X-Process-Time-Ms` header that the service middleware sets.

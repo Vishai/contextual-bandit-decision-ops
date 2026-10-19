@@ -1,4 +1,4 @@
-.PHONY: install test lint check smoke demo release-check docker-build docker-smoke deploy-aws retrain-aws tf-validate
+.PHONY: install test lint check smoke demo offer-demo offer-smoke latency release-check docker-build docker-smoke deploy-aws retrain-aws tf-validate
 
 PYTHON ?= python
 IMAGE_NAME ?= contextual-bandit-decision-ops:local
@@ -19,6 +19,15 @@ smoke:
 
 demo:
 	bash scripts/generate_demo.sh
+
+offer-demo:
+	bash scripts/generate_offer_reports.sh
+
+offer-smoke:
+	contextual-bandit-offer-service --smoke-test
+
+latency:
+	contextual-bandit-latency
 
 release-check: check smoke
 	contextual-bandit-info --version
