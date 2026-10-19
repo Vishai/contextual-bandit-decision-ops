@@ -5,6 +5,8 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass, fields
 from typing import Any
 
+import numpy as np
+
 from .schemas import REGIONS
 
 DEVICES = ("mobile", "desktop", "tablet")
@@ -123,3 +125,65 @@ def new_user_context(user_id: str, device: str, region: str) -> OfferContext:
         offer_impressions_30d=0,
         offer_conversions_30d=0,
     )
+
+
+def _log_scaled(value: float, reference: float) -> float:
+    return math.log1p(value) / math.log1p(reference)
+
+
+NUMERIC_FEATURE_NAMES = (
+    "engagement_score",
+    "sessions_7d_log",
+    "sessions_30d_log",
+    "visit_recency",
+    "tenure_log",
+    "purchases_90d_log",
+    "avg_order_value_log",
+    "purchase_recency",
+    "never_purchased",
+    "offer_response_rate_30d",
+)
+FEATURE_NAMES = (
+    "bias",
+    *NUMERIC_FEATURE_NAMES,
+    *(f"device_{device}" for device in DEVICES),
+    *(f"region_{region}" for region in GEOGRAPHIES),
+)
+FEATURE_DIMENSION = len(FEATURE_NAMES)
+
+
+def encode_context(context: OfferContext) -> np.ndarray:
+    """Turn a context into a fixed-length vector, with most values roughly in [0, 1].
+
+    Counts and money are log scaled so heavy users don't dominate, recency uses
+    exponential decay so "never" and "long ago" both land near zero, and device
+    and region are one-hot.
+    """
+    purchase_recency = (
+        math.exp(-context.days_since_last_purchase / 30.0)
+        if context.days_since_last_purchase is not None
+        else 0.0
+    )
+    response_rate = context.offer_conversions_30d / (context.offer_impressions_30d + 1.0)
+    vector = [
+        1.0,
+        context.engagement_score,
+        _log_scaled(context.sessions_7d, 14.0),
+        _log_scaled(context.sessions_30d, 60.0),
+        math.exp(-context.days_since_last_visit / 7.0),
+        _log_scaled(context.tenure_days, 730.0),
+        _log_scaled(context.purchases_90d, 12.0),
+        _log_scaled(context.avg_order_value, 400.0),
+        purchase_recency,
+        float(not context.has_purchased),
+        response_rate,
+        *(float(context.device == device) for device in DEVICES),
+        *(float(context.region == region) for region in GEOGRAPHIES),
+    ]
+    return np.asarray(vector, dtype=float)
+
+
+def encode_contexts(contexts: list[OfferContext]) -> np.ndarray:
+    if not contexts:
+        return np.zeros((0, FEATURE_DIMENSION), dtype=float)
+    return np.vstack([encode_context(context) for context in contexts])
