@@ -211,3 +211,17 @@ def test_journal_mode_can_be_set_for_network_filesystems(
         assert store.journal_mode == "DELETE"
     with pytest.raises(ValueError, match="journal_mode"):
         FeatureStore(tmp_path / "bad.sqlite", journal_mode="MEMORY; DROP TABLE users")
+
+
+def test_device_mix_can_be_shifted() -> None:
+    mobile_heavy = generate_population(
+        ActivityConfig(n_users=400, history_days=10, simulation_days=2,
+                       device_shares=(0.9, 0.05, 0.05))
+    )
+    share = sum(user.device == "mobile" for user in mobile_heavy.users) / 400
+    assert share > 0.8
+    with pytest.raises(ValueError, match="add up"):
+        ActivityConfig(device_shares=(0.5, 0.2, 0.2))
+    with pytest.raises(ValueError, match="one non-negative"):
+        ActivityConfig(device_shares=(1.0, 0.0))  # type: ignore[arg-type]
+

@@ -21,6 +21,7 @@ class ActivityConfig:
     history_days: int = 90
     simulation_days: int = 28
     new_user_share: float = 0.12
+    device_shares: tuple[float, float, float] = DEVICE_SHARES
 
     def __post_init__(self) -> None:
         if self.n_users <= 0:
@@ -33,6 +34,10 @@ class ActivityConfig:
             raise ValueError("history_days and simulation_days must be positive")
         if not 0.0 <= self.new_user_share < 1.0:
             raise ValueError("new_user_share must be in [0, 1)")
+        if len(self.device_shares) != len(DEVICES) or min(self.device_shares) < 0.0:
+            raise ValueError("device_shares needs one non-negative share per device")
+        if not np.isclose(sum(self.device_shares), 1.0):
+            raise ValueError("device_shares must add up to 1")
 
     @property
     def end(self) -> datetime:
@@ -82,7 +87,7 @@ def generate_population(config: ActivityConfig) -> SyntheticPopulation:
 
     for user_index in range(config.n_users):
         user_id = f"user-{user_index:06d}"
-        device = DEVICES[int(rng.choice(len(DEVICES), p=DEVICE_SHARES))]
+        device = DEVICES[int(rng.choice(len(DEVICES), p=config.device_shares))]
         region = GEOGRAPHIES[int(rng.integers(0, len(GEOGRAPHIES)))]
         if rng.random() < config.new_user_share:
             signup_at = config.start + timedelta(days=float(rng.uniform(0.0, config.simulation_days)))
