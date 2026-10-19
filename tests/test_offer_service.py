@@ -262,3 +262,38 @@ def test_event_ids_stay_unique_across_restarts(tmp_path: Path) -> None:
     (first,) = call(make_app(tmp_path), ("POST", "/decide", decide_body()))
     (second,) = call(make_app(tmp_path), ("POST", "/decide", decide_body()))
     assert first.json()["event_id"] != second.json()["event_id"]
+
+
+def test_service_polls_for_new_model_versions(tmp_path: Path) -> None:
+    artifact = tmp_path / "models" / "latest.json"
+    app = make_app(tmp_path, model_artifact_path=artifact, model_poll_seconds=0.001)
+    service = app.state.offer_service
+    (before,) = call(app, ("POST", "/decide", decide_body()))
+    assert before.json()["model_version"] == "untrained"
+
+    save_policy_artifact(BayesianLogisticThompsonSampling(CATALOG), artifact, "v1")
+    service._next_poll = 0.0
+    (after,) = call(app, ("POST", "/decide", decide_body()))
+    assert after.json()["model_version"] == "v1"
+
+    artifact.write_text("{not json", encoding="utf-8")
+    service._next_poll = 0.0
+    (still,) = call(app, ("POST", "/decide", decide_body()))
+    assert still.status_code == 200
+    assert still.json()["model_version"] == "v1"
+
+
+def test_feedback_from_another_replica_is_logged_for_retraining(tmp_path: Path) -> None:
+    app = make_app(tmp_path, log_unmatched_feedback=True)
+    first, duplicate = call(
+        app,
+        ("POST", "/feedback", {"event_id": "offer-other-task-1", "converted": True}),
+        ("POST", "/feedback", {"event_id": "offer-other-task-1", "converted": True}),
+    )
+    assert first.status_code == 200
+    assert first.json()["status"] == "logged"
+    assert first.json()["posterior_updated"] is False
+    assert duplicate.status_code == 409
+    record = json.loads((tmp_path / "feedback.jsonl").read_text(encoding="utf-8"))
+    assert record["matched"] is False
+    assert record["revenue"] is None

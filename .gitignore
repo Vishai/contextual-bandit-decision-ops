@@ -7,3 +7,8 @@ data/processed/
 artifacts/
 logs/
 *.egg-info/
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+infra/aws/terraform.tfvars

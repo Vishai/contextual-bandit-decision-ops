@@ -1,0 +1,10 @@
+region     = "us-east-1"
+project    = "offer-bandit"
+vpc_id     = "vpc-0123456789abcdef0"
+subnet_ids = ["subnet-0123456789abcdef0", "subnet-0fedcba9876543210"]
+
+# Optional
+# certificate_arn  = "arn:aws:acm:us-east-1:123456789012:certificate/..."
+# alarm_email      = "you@example.com"
+# desired_count    = 2
+# retrain_schedule = "cron(0 3 * * ? *)"

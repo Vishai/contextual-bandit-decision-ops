@@ -267,3 +267,54 @@ def test_retrain_cli_bootstraps_and_reports(tmp_path: Path) -> None:
     assert "# Retraining Run" in text
     assert "Promotion gate" in text
     assert (tmp_path / "models" / "latest.json").exists()
+
+
+def test_ingest_reads_every_task_log_folder(tmp_path: Path) -> None:
+    context = new_user_context("u1", "tablet", "west").to_dict()
+    for task, event_id in (("task-a", "a1"), ("task-b", "b1")):
+        folder = tmp_path / "logs" / task
+        folder.mkdir(parents=True)
+        (folder / "decisions.jsonl").write_text(
+            json.dumps({"event_id": event_id, "user_id": "u1", "context": context,
+                        "offer_id": "free_shipping", "propensity": 0.5,
+                        "timestamp": "2025-03-02T09:00:00+00:00"}) + "\n",
+            encoding="utf-8",
+        )
+    (tmp_path / "logs" / "task-b" / "feedback.jsonl").write_text(
+        json.dumps({"event_id": "a1", "converted": True, "revenue": 38.0,
+                    "timestamp": "2025-03-02T10:00:00+00:00"}) + "\n",
+        encoding="utf-8",
+    )
+    with FeatureStore() as store:
+        summary = ingest_service_logs(store, tmp_path / "logs", tmp_path / "logs")
+    assert (summary.decisions_read, summary.decisions_inserted) == (2, 2)
+    assert summary.feedback_applied == 1
+
+
+def test_ingest_fills_in_revenue_for_unmatched_feedback(tmp_path: Path) -> None:
+    context = new_user_context("u1", "mobile", "north").to_dict()
+    decisions = tmp_path / "decisions.jsonl"
+    feedback = tmp_path / "feedback.jsonl"
+    decisions.write_text(json.dumps({
+        "event_id": "x1", "user_id": "u1", "context": context, "offer_id": "premium_trial",
+        "propensity": 0.4, "timestamp": "2025-03-03T09:00:00+00:00"}) + "\n", encoding="utf-8")
+    feedback.write_text(json.dumps({
+        "event_id": "x1", "converted": True, "revenue": None, "matched": False,
+        "timestamp": "2025-03-03T09:30:00+00:00"}) + "\n", encoding="utf-8")
+    with FeatureStore() as store:
+        ingest_service_logs(store, decisions, feedback)
+        revenue = store.connection.execute(
+            "SELECT revenue FROM offer_events WHERE event_id = 'x1'").fetchone()[0]
+    assert revenue == CATALOG.revenue("premium_trial")
+
+
+def test_bootstrap_also_fills_an_empty_store(tmp_path: Path) -> None:
+    empty = tmp_path / "service-created.sqlite"
+    FeatureStore(empty).close()
+    code = retrain_main(["--store", str(empty), "--bootstrap-demo-store", "--demo-days", "6",
+                         "--model-dir", str(tmp_path / "models"),
+                         "--report-md", str(tmp_path / "run.md"),
+                         "--min-training-events", "300"])
+    assert code == 0
+    with FeatureStore(empty) as store:
+        assert store.table_counts()["offer_events"] > 0

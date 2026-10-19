@@ -82,7 +82,7 @@ class OfferFeedbackRequest(StrictModel):
 
 class OfferFeedbackResponse(StrictModel):
     event_id: str
-    status: Literal["accepted"]
+    status: Literal["accepted", "logged"]
     posterior_updated: bool
     timestamp: datetime
 
