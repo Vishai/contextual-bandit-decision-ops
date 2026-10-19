@@ -108,8 +108,9 @@ def test_offline_estimates_track_the_truth(history: list[LoggedOfferEvent]) -> N
         [RandomOfferPolicy(CATALOG), RuleBasedOfferPolicy(CATALOG)],
         history,
         reward_model,
-        TRUTH,
+        CATALOG,
         np.random.default_rng(1),
+        truth=TRUTH,
         bootstrap_samples=50,
     )
     rules = estimates["rule_based"]
@@ -120,6 +121,12 @@ def test_offline_estimates_track_the_truth(history: list[LoggedOfferEvent]) -> N
     for estimate in estimates.values():
         assert estimate.conversion_dr == pytest.approx(estimate.true_conversion, abs=0.035)
         assert estimate.revenue_dr == pytest.approx(estimate.true_revenue_per_decision, rel=0.25)
+    without_truth = evaluate_offline(
+        [RuleBasedOfferPolicy(CATALOG)], history, reward_model, CATALOG,
+        np.random.default_rng(1), bootstrap_samples=10,
+    )["rule_based"]
+    assert without_truth.true_conversion is None
+    assert without_truth.revenue_dr == pytest.approx(rules.revenue_dr, rel=1e-9)
     random = estimates["random"]
     low, high = random.revenue_lift_ci
     assert low < high < 0.0
@@ -129,7 +136,7 @@ def test_offline_estimates_track_the_truth(history: list[LoggedOfferEvent]) -> N
 def test_offline_evaluation_needs_events() -> None:
     with pytest.raises(ValueError, match="no held-out events"):
         evaluate_offline([RandomOfferPolicy(CATALOG)], [], BayesianLogisticThompsonSampling(CATALOG),
-                         TRUTH, np.random.default_rng(0))
+                         CATALOG, np.random.default_rng(0))
 
 
 def test_replay_keeps_about_the_minimum_propensity_share(history: list[LoggedOfferEvent]) -> None:

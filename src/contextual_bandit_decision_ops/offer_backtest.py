@@ -59,8 +59,8 @@ class OfflineEstimate:
     revenue_snips: float
     revenue_dr: float
     effective_sample_size: float
-    true_conversion: float
-    true_revenue_per_decision: float
+    true_conversion: float | None
+    true_revenue_per_decision: float | None
     revenue_per_user_dr: float
     conversion_lift_pts_ci: tuple[float, float] | None
     revenue_lift_ci: tuple[float, float] | None
@@ -154,8 +154,9 @@ def evaluate_offline(
     policies: Sequence[OfferPolicy],
     events: Sequence[LoggedOfferEvent],
     reward_model: BayesianLogisticThompsonSampling,
-    truth: ConversionModel,
+    catalog: OfferCatalog,
     rng: np.random.Generator,
+    truth: ConversionModel | None = None,
     propensity_samples: int = 500,
     bootstrap_samples: int = 300,
 ) -> dict[str, OfflineEstimate]:
@@ -163,12 +164,12 @@ def evaluate_offline(
 
     IPS and SNIPS only use logged outcomes and propensities. Doubly robust adds a
     reward model (the posterior mean of a logistic fit on the training window) to
-    cut variance. Since the logs come from a simulator, every estimate is also
-    checked against the true expected value of the same policy.
+    cut variance. When the logs come from the simulator, pass ``truth`` and every
+    estimate is also checked against the true expected value of the same policy.
+    Production retraining has no truth, so those fields stay None.
     """
     if not events:
         raise ValueError("there are no held-out events to evaluate on")
-    catalog = truth.catalog
     offers = catalog.offer_ids
     values = catalog.revenue_vector()
     logged_index = np.array([offers.index(event.offer_id) for event in events])
@@ -181,12 +182,16 @@ def evaluate_offline(
     predicted = np.column_stack(
         [sigmoid(features @ reward_model.posteriors[offer_id].mean) for offer_id in offers]
     )
-    true_rates = np.vstack([truth.conversion_probabilities(event.context) for event in events])
+    true_rates = (
+        np.vstack([truth.conversion_probabilities(event.context, offers) for event in events])
+        if truth is not None
+        else None
+    )
     users_per_decision = len({event.context.user_id for event in events}) / len(events)
 
     per_event_conversion: dict[str, np.ndarray] = {}
     per_event_revenue: dict[str, np.ndarray] = {}
-    partial: dict[str, dict[str, float]] = {}
+    partial: dict[str, dict[str, float | None]] = {}
     for policy in policies:
         target = target_probability_matrix(policy, events, offers, rng, propensity_samples)
         on_logged = target[rows, logged_index]
@@ -219,8 +224,14 @@ def evaluate_offline(
             "revenue_snips": estimate_snips(revenue, propensities, on_logged).value or 0.0,
             "revenue_dr": revenue_dr.value or 0.0,
             "effective_sample_size": revenue_dr.effective_sample_size or 0.0,
-            "true_conversion": float((target * true_rates).sum(axis=1).mean()),
-            "true_revenue_per_decision": float((target * true_rates * values).sum(axis=1).mean()),
+            "true_conversion": (
+                float((target * true_rates).sum(axis=1).mean()) if true_rates is not None else None
+            ),
+            "true_revenue_per_decision": (
+                float((target * true_rates * values).sum(axis=1).mean())
+                if true_rates is not None
+                else None
+            ),
         }
 
     baseline_conversion = per_event_conversion.get(BASELINE)
@@ -324,10 +335,11 @@ def run_backtest(config: BacktestConfig | None = None) -> BacktestRun:
         trained,
         test,
         reward_model,
-        truth,
+        catalog,
         rng,
-        settings.propensity_samples,
-        settings.bootstrap_samples,
+        truth=truth,
+        propensity_samples=settings.propensity_samples,
+        bootstrap_samples=settings.bootstrap_samples,
     )
     replay = replay_learning_policies(
         factories,
