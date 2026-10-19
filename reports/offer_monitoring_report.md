@@ -6,7 +6,7 @@
 
 | Check | Status | Detail |
 | --- | --- | --- |
-| latency_p99 | ok | p99 0.79 ms against a 100 ms budget |
+| latency_p99 | ok | p99 0.72 ms against a 100 ms budget |
 | latency_budget_rate | ok | 100.00% of decisions inside the budget |
 | feature_drift | ALERT | 4 of 14 features shifted (engagement_score, sessions_30d, tenure_days, device); largest is device at TVD 0.201 |
 | allocation_shift | WARN | total variation 0.191 between the offer mixes |
@@ -30,9 +30,9 @@
 | Revenue / decision | 5.401 | 4.798 |
 | Feedback coverage | 100.0% | 100.0% |
 | Exploration rate | 5.0% | 5.0% |
-| Decision latency p50 ms | 0.38 | 0.37 |
-| Decision latency p95 ms | 0.62 | 0.60 |
-| Decision latency p99 ms | 0.78 | 0.79 |
+| Decision latency p50 ms | 0.39 | 0.36 |
+| Decision latency p95 ms | 0.75 | 0.53 |
+| Decision latency p99 ms | 1.30 | 0.72 |
 | Minimum propensity | 0.0100 | 0.0100 |
 | Regret / decision, model estimate | 0.738 | 0.410 |
 | Regret / decision, true (simulation only) | 0.583 | 1.839 |
@@ -69,7 +69,8 @@ Both windows in order, split into equal slices of decisions.
 ## Data drift
 
 PSI for numeric features (under 0.1 stable, 0.1 to 0.25 moderate, over 0.25 large),
-total variation distance for categorical ones.
+total variation distance for categorical ones. PSI runs high on small windows, so with
+only a few hundred decisions per window a value near 0.1 can be noise.
 
 | Feature | Statistic | Value | Status |
 | --- | --- | ---: | --- |
