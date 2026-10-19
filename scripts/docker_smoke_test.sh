@@ -36,12 +36,36 @@ trap cleanup EXIT
   --publish "127.0.0.1:${host_port}:8000" \
   "${image_name}" >/dev/null
 
-health_url="http://127.0.0.1:${host_port}/health"
+base_url="http://127.0.0.1:${host_port}"
+health_url="${base_url}/health"
 for ((attempt = 1; attempt <= 30; attempt += 1)); do
   if "${python_command}" -c \
     "import json, sys, urllib.request; payload = json.load(urllib.request.urlopen(sys.argv[1], timeout=2)); assert payload['status'] == 'ok'" \
     "${health_url}" >/dev/null 2>&1; then
-    echo "Docker smoke test passed: ${health_url}"
+    "${python_command}" - "${base_url}" <<'PY'
+import json
+import sys
+import urllib.request
+
+base = sys.argv[1]
+
+
+def post(path, body):
+    request = urllib.request.Request(
+        base + path,
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=5) as response:
+        return json.load(response)
+
+
+decision = post("/decide", {"user_id": "docker-smoke", "device": "mobile", "region": "east"})
+feedback = post("/feedback", {"event_id": decision["event_id"], "converted": True})
+assert feedback["posterior_updated"] is True
+print(f"decided {decision['offer_id']} in {decision['decision_latency_ms']:.2f} ms")
+PY
+    echo "Docker smoke test passed: ${base_url}"
     exit 0
   fi
   sleep 1
