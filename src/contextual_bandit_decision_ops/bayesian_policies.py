@@ -398,15 +398,32 @@ class BayesianLogisticThompsonSampling:
         for offer_id in self.catalog.offer_ids:
             rows = offers == offer_id
             x, y = features[rows], outcomes[rows]
+
+            def log_posterior(w: np.ndarray, x: np.ndarray = x, y: np.ndarray = y) -> float:
+                logits = x @ w
+                likelihood = float(np.sum(y * logits - np.logaddexp(0.0, logits)))
+                offset = w - prior_mean
+                return likelihood - 0.5 * float(offset @ prior_precision @ offset)
+
             weights = prior_mean.copy()
+            current = log_posterior(weights)
             for _ in range(max_iterations):
                 probabilities = sigmoid(x @ weights)
                 gradient = x.T @ (y - probabilities) - prior_precision @ (weights - prior_mean)
                 curvature = probabilities * (1.0 - probabilities)
                 hessian = prior_precision + (x * curvature[:, None]).T @ x
                 step = np.linalg.solve(hessian, gradient)
-                weights = weights + step
-                if float(np.max(np.abs(step))) < tolerance:
+                # Plain Newton can overshoot when the start is far from the optimum,
+                # so halve the step until the log posterior actually improves.
+                scale = 1.0
+                while scale > 1e-6:
+                    candidate = log_posterior(weights + scale * step)
+                    if candidate >= current + 1e-4 * scale * float(gradient @ step):
+                        break
+                    scale *= 0.5
+                weights = weights + scale * step
+                current = log_posterior(weights)
+                if float(np.max(np.abs(scale * step))) < tolerance:
                     break
             probabilities = sigmoid(x @ weights)
             curvature = probabilities * (1.0 - probabilities)
