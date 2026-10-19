@@ -247,6 +247,7 @@ class BayesianLogisticThompsonSampling:
     exploration_scale: float = 1.0
     forgetting: float = 1.0
     objective: Objective = "revenue"
+    label: str = ""
     posteriors: dict[str, _OfferPosterior] = field(init=False, default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
@@ -267,7 +268,7 @@ class BayesianLogisticThompsonSampling:
 
     @property
     def name(self) -> str:
-        return "thompson_sampling"
+        return self.label or "thompson_sampling"
 
     @property
     def dimension(self) -> int:
