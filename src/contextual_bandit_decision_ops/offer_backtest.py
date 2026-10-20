@@ -101,14 +101,18 @@ def target_probability_matrix(
     rng: np.random.Generator,
     n_samples: int = 500,
 ) -> np.ndarray:
-    """Probability the target policy would show each offer at each logged visit."""
+    """Probability the target policy would show each offer at each logged visit.
+
+    The policy only chooses among the offers that were available for that visit,
+    so offers the user could never have seen get probability zero.
+    """
     if not hasattr(policy, "action_probabilities"):
         raise ValueError(f"{policy.name} must expose action_probabilities")
     extra = {"n_samples": n_samples} if _accepts_sample_count(policy) else {}
     matrix = np.empty((len(events), len(offers)))
     for row, event in enumerate(events):
         probabilities = policy.action_probabilities(  # type: ignore[attr-defined]
-            event.context, offers, rng, **extra
+            event.context, event.offers(offers), rng, **extra
         )
         matrix[row] = [probabilities.get(offer_id, 0.0) for offer_id in offers]
     return matrix
@@ -279,7 +283,7 @@ def replay_learning_policies(
         accepted = conversions = 0
         revenue = 0.0
         for event in events:
-            choice = policy.choose(event.context, offers, rng)
+            choice = policy.choose(event.context, event.offers(offers), rng)
             if choice != event.offer_id:
                 continue
             if rng.random() >= minimum_propensity / event.propensity:
