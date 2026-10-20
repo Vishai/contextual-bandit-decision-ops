@@ -193,7 +193,8 @@ def evaluate_offline(
     cut variance. When the logs come from the simulator, pass ``truth`` and every
     estimate is also checked against the true expected value of the same policy.
     Production retraining has no truth, so those fields stay None. Lift
-    intervals are paired bootstrap intervals against the ``baseline`` policy.
+    intervals are paired bootstrap intervals against the ``baseline`` policy,
+    resampling users rather than visits because a user's visits are correlated.
     """
     if not events:
         raise ValueError("there are no held-out events to evaluate on")
@@ -204,6 +205,7 @@ def evaluate_offline(
     propensities = np.array([event.propensity for event in events])
     converted = np.array([float(event.converted) for event in events])
     revenue = np.array([event.revenue for event in events])
+    user_ids = np.array([event.context.user_id for event in events])
 
     features = encode_contexts([event.context for event in events])
     predicted = np.column_stack(
@@ -214,7 +216,7 @@ def evaluate_offline(
         if truth is not None
         else None
     )
-    users_per_decision = len({event.context.user_id for event in events}) / len(events)
+    users_per_decision = len(set(user_ids)) / len(events)
 
     per_event_conversion: dict[str, np.ndarray] = {}
     per_event_revenue: dict[str, np.ndarray] = {}
@@ -269,10 +271,12 @@ def evaluate_offline(
         conversion_ci = revenue_ci = None
         if baseline_conversion is not None and baseline_revenue is not None and name != baseline:
             conversion_ci = _bootstrap_lift(
-                per_event_conversion[name], baseline_conversion, rng, bootstrap_samples, False
+                per_event_conversion[name], baseline_conversion, rng, bootstrap_samples, False,
+                groups=user_ids,
             )
             revenue_ci = _bootstrap_lift(
-                per_event_revenue[name], baseline_revenue, rng, bootstrap_samples, True
+                per_event_revenue[name], baseline_revenue, rng, bootstrap_samples, True,
+                groups=user_ids,
             )
         estimates[name] = OfflineEstimate(
             policy_name=name,
