@@ -108,10 +108,11 @@ def ingest_service_logs(
     connection = store.connection
     for record in decisions:
         context = context_from_mapping(record["context"])
+        available = record.get("available_offers")
         cursor = connection.execute(
             "INSERT OR IGNORE INTO offer_events "
-            "(event_id, user_id, decided_at, offer_id, policy_name, propensity, context_json) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "(event_id, user_id, decided_at, offer_id, policy_name, propensity, context_json, "
+            "available_offers) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 record["event_id"],
                 record["user_id"],
@@ -120,6 +121,7 @@ def ingest_service_logs(
                 record.get("policy_name", "unknown"),
                 float(record["propensity"]),
                 json.dumps(context.to_dict(), sort_keys=True),
+                json.dumps(list(available)) if available is not None else None,
             ),
         )
         inserted += cursor.rowcount

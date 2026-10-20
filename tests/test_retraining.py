@@ -15,6 +15,7 @@ from contextual_bandit_decision_ops.model_registry import ModelRegistry
 from contextual_bandit_decision_ops.offer_api import create_offer_app
 from contextual_bandit_decision_ops.offer_backtest import OfflineEstimate
 from contextual_bandit_decision_ops.offer_features import new_user_context
+from contextual_bandit_decision_ops.offer_history import load_logged_events
 from contextual_bandit_decision_ops.offer_service import OfferServiceConfig
 from contextual_bandit_decision_ops.offer_simulation import default_conversion_model
 from contextual_bandit_decision_ops.retrain_cli import bootstrap_demo_store
@@ -318,3 +319,40 @@ def test_bootstrap_also_fills_an_empty_store(tmp_path: Path) -> None:
     assert code == 0
     with FeatureStore(empty) as store:
         assert store.table_counts()["offer_events"] > 0
+
+
+def test_ingest_keeps_the_offers_that_were_available(tmp_path: Path) -> None:
+    context = new_user_context("u1", "mobile", "south").to_dict()
+    decisions = tmp_path / "decisions.jsonl"
+    feedback = tmp_path / "feedback.jsonl"
+    decisions.write_text(json.dumps({
+        "event_id": "p1", "user_id": "u1", "context": context, "offer_id": "bundle_deal",
+        "available_offers": ["bundle_deal", "loyalty_points"], "propensity": 0.6,
+        "timestamp": "2025-03-04T09:00:00+00:00"}) + "\n", encoding="utf-8")
+    feedback.write_text(json.dumps({
+        "event_id": "p1", "converted": False, "revenue": 0.0,
+        "timestamp": "2025-03-04T09:10:00+00:00"}) + "\n", encoding="utf-8")
+    with FeatureStore() as store:
+        ingest_service_logs(store, decisions, feedback)
+        (event,) = load_logged_events(store)
+    assert event.available_offers == ("bundle_deal", "loyalty_points")
+    assert event.offers(CATALOG.offer_ids) == ("bundle_deal", "loyalty_points")
+
+
+def test_older_stores_gain_the_available_offers_column(tmp_path: Path) -> None:
+    import sqlite3
+
+    path = tmp_path / "old.sqlite"
+    connection = sqlite3.connect(path)
+    connection.execute(
+        "CREATE TABLE offer_events (event_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, "
+        "decided_at TEXT NOT NULL, offer_id TEXT NOT NULL, policy_name TEXT NOT NULL, "
+        "propensity REAL NOT NULL, context_json TEXT NOT NULL, converted INTEGER, "
+        "revenue REAL, feedback_at TEXT)"
+    )
+    connection.commit()
+    connection.close()
+    with FeatureStore(path) as store:
+        columns = {row[1] for row in store.connection.execute("PRAGMA table_info(offer_events)")}
+    assert "available_offers" in columns
+
