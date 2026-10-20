@@ -184,7 +184,7 @@ early exploration.
   hours costs it about 23% more regret.
 - **Shifting conversion rates.** When the rates move halfway through, the rules
   can't react (39,745 regret after the shift), while UCB and Thompson Sampling
-  recover to about a fifth of that.
+  lose about a quarter of that.
 
 ## Automated retraining
 
