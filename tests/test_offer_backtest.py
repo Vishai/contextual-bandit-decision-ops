@@ -230,3 +230,23 @@ def test_offline_evaluation_respects_the_offers_that_were_available() -> None:
     replay = replay_learning_policies([lambda: RuleBasedOfferPolicy(CATALOG)], events, CATALOG,
                                       minimum_propensity=0.1, rng=np.random.default_rng(2))
     assert replay["rule_based"].accepted_events > 100
+
+
+def test_unsupported_estimates_are_nan_not_zero(history: list[LoggedOfferEvent]) -> None:
+    only_bundle = FixedBundlePolicy()
+    rarely_logged = [e for e in history if e.offer_id != "bundle_deal"][:200]
+    estimate = evaluate_offline([only_bundle], rarely_logged, BayesianLogisticThompsonSampling(CATALOG),
+                                CATALOG, np.random.default_rng(0), bootstrap_samples=5)["fixed"]
+    assert np.isnan(estimate.conversion_snips)
+    assert np.isnan(estimate.revenue_snips)
+    assert estimate.effective_sample_size == 0.0
+
+
+class FixedBundlePolicy:
+    name = "fixed"
+
+    def choose(self, context, offers, rng):
+        return "bundle_deal"
+
+    def action_probabilities(self, context, offers, rng=None):
+        return {offer: float(offer == "bundle_deal") for offer in offers}

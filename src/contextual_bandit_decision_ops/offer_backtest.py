@@ -94,6 +94,12 @@ def _accepts_sample_count(policy: object) -> bool:
     return method is not None and "n_samples" in inspect.signature(method).parameters
 
 
+def _number(value: float | None) -> float:
+    """An estimate the data can't support comes back as NaN, never as a quiet zero,
+    so any gate comparing against it fails instead of passing on a fake number."""
+    return float("nan") if value is None else float(value)
+
+
 def target_probability_matrix(
     policy: OfferPolicy,
     events: Sequence[LoggedOfferEvent],
@@ -216,19 +222,20 @@ def evaluate_offline(
             revenue, propensities, on_logged, revenue_model_value, logged_revenue_prediction
         )
         partial[policy.name] = {
-            "conversion_ips": estimate_ips(converted, propensities, on_logged).value or 0.0,
-            "conversion_snips": estimate_snips(converted, propensities, on_logged).value or 0.0,
-            "conversion_dr": estimate_doubly_robust(
-                converted,
-                propensities,
-                on_logged,
-                conversion_model_value,
-                logged_conversion_prediction,
-            ).value
-            or 0.0,
-            "revenue_ips": estimate_ips(revenue, propensities, on_logged).value or 0.0,
-            "revenue_snips": estimate_snips(revenue, propensities, on_logged).value or 0.0,
-            "revenue_dr": revenue_dr.value or 0.0,
+            "conversion_ips": _number(estimate_ips(converted, propensities, on_logged).value),
+            "conversion_snips": _number(estimate_snips(converted, propensities, on_logged).value),
+            "conversion_dr": _number(
+                estimate_doubly_robust(
+                    converted,
+                    propensities,
+                    on_logged,
+                    conversion_model_value,
+                    logged_conversion_prediction,
+                ).value
+            ),
+            "revenue_ips": _number(estimate_ips(revenue, propensities, on_logged).value),
+            "revenue_snips": _number(estimate_snips(revenue, propensities, on_logged).value),
+            "revenue_dr": _number(revenue_dr.value),
             "effective_sample_size": revenue_dr.effective_sample_size or 0.0,
             "true_conversion": (
                 float((target * true_rates).sum(axis=1).mean()) if true_rates is not None else None
