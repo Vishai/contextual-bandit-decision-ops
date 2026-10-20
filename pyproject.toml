@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Vishai/contextual-bandit-decision-ops"
+Repository = "https://github.com/Vishai/contextual-bandit-offer-recommendation"
 
 [project.optional-dependencies]
 dev = [

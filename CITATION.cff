@@ -1,13 +1,13 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using this metadata."
-title: "Contextual Bandit Decision Ops"
+title: "Real-Time Contextual Bandit Offer Recommendation System"
 type: software
 version: 0.2.0
 date-released: 2026-10-19
 authors:
   - name: "Contextual Bandit Decision Ops contributors"
 license: MIT
-repository-code: "https://github.com/Vishai/contextual-bandit-decision-ops"
+repository-code: "https://github.com/Vishai/contextual-bandit-offer-recommendation"
 abstract: >-
   A real-time offer recommendation system built on contextual Bayesian Thompson
   Sampling, with SQL feature pipelines, a FastAPI service, offline policy
