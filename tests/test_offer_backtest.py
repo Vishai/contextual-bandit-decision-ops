@@ -13,6 +13,7 @@ from contextual_bandit_decision_ops.bayesian_policies import (
 )
 from contextual_bandit_decision_ops.offer_backtest import (
     BacktestConfig,
+    _bootstrap_lift,
     evaluate_offline,
     replay_learning_policies,
     run_backtest,
@@ -250,3 +251,29 @@ class FixedBundlePolicy:
 
     def action_probabilities(self, context, offers, rng=None):
         return {offer: float(offer == "bundle_deal") for offer in offers}
+
+
+def test_one_event_per_user_matches_the_event_bootstrap() -> None:
+    rng = np.random.default_rng(0)
+    policy, baseline = rng.random(300), rng.random(300)
+    by_event = _bootstrap_lift(policy, baseline, np.random.default_rng(5), 200, False)
+    by_user = _bootstrap_lift(
+        policy, baseline, np.random.default_rng(5), 200, False, groups=np.arange(300)
+    )
+    assert by_user == pytest.approx(by_event, abs=1e-12)
+
+
+def test_repeat_visits_widen_the_interval() -> None:
+    # 200 users, each seen 6 times with the same per-user effect. Resampling the
+    # 1,200 visits as if they were independent understates the noise by about
+    # sqrt(6); resampling users does not.
+    rng = np.random.default_rng(1)
+    users = np.repeat(np.arange(200), 6)
+    effect = rng.normal(0.0, 1.0, 200)[users]
+    baseline = np.zeros_like(effect)
+    low, high = _bootstrap_lift(effect, baseline, np.random.default_rng(2), 2000, False)
+    user_low, user_high = _bootstrap_lift(
+        effect, baseline, np.random.default_rng(2), 2000, False, groups=users
+    )
+    ratio = (user_high - user_low) / (high - low)
+    assert 2.0 < ratio < 3.0

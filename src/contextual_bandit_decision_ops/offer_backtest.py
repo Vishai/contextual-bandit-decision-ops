@@ -147,11 +147,26 @@ def _bootstrap_lift(
     rng: np.random.Generator,
     samples: int,
     relative: bool,
+    groups: np.ndarray | None = None,
 ) -> tuple[float, float]:
-    n = len(per_event)
-    indexes = rng.integers(0, n, size=(samples, n))
-    policy_means = per_event[indexes].mean(axis=1)
-    baseline_means = baseline[indexes].mean(axis=1)
+    """Paired bootstrap interval for the policy's lift over the baseline.
+
+    With ``groups`` (one id per event, usually the user), whole groups are drawn
+    with replacement instead of single events. Visits from the same user are
+    correlated, so resampling them one by one makes the interval too narrow.
+    """
+    if groups is None:
+        groups = np.arange(len(per_event))
+    _, group_index = np.unique(groups, return_inverse=True)
+    n_groups = int(group_index.max()) + 1
+    policy_sums = np.bincount(group_index, weights=per_event, minlength=n_groups)
+    baseline_sums = np.bincount(group_index, weights=baseline, minlength=n_groups)
+    counts = np.bincount(group_index, minlength=n_groups).astype(float)
+
+    draws = rng.integers(0, n_groups, size=(samples, n_groups))
+    drawn_counts = counts[draws].sum(axis=1)
+    policy_means = policy_sums[draws].sum(axis=1) / drawn_counts
+    baseline_means = baseline_sums[draws].sum(axis=1) / drawn_counts
     if relative:
         lifts = policy_means / baseline_means - 1.0
     else:
