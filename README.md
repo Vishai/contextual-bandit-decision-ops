@@ -1,162 +1,174 @@
-# Contextual Bandit Decision Ops
+# Real-Time Contextual Bandit Offer Recommendation System
 
-A real-time offer recommendation system built on a contextual bandit. For every
-visit it picks one of five offers with Bayesian Thompson Sampling, keeping a
-posterior over each offer's conversion rate and updating it from live feedback.
-It uses user history, device, geography, engagement and purchase features
-built by SQL feature pipelines.
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-service-009688)
+![Docker](https://img.shields.io/badge/Docker-ready-2496ED)
+![AWS ECS](https://img.shields.io/badge/AWS-ECS%20Fargate-FF9900)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
-It serves decisions from FastAPI in Docker or on AWS (ECS Fargate behind an ALB)
-against a sub-100 ms target, retrains itself on a schedule, and comes with
-offline policy evaluation, backtesting, scenario simulations and monitoring.
+Picks the best offer for every visitor in real time, and gets better with every
+conversion it sees.
 
-> All outcomes come from a synthetic ground truth model, so every offline
-> estimate can be checked against the true answer. The numbers below describe
-> the simulator, not a live business.
+- **Bayesian Thompson Sampling.** Each offer keeps a posterior over its
+  conversion rate, conditioned on user history, device, geography, engagement and
+  purchase features. Every piece of feedback updates that posterior straight away.
+- **Built to serve.** A FastAPI service on Docker and AWS answers against a
+  sub-100 ms target. Features come from SQL pipelines, the model retrains itself
+  on a schedule, and pytest covers posterior updates, features and policy
+  decisions.
+- **Measured before it ships.** Offline policy evaluation and backtesting compare
+  random, greedy, UCB and Thompson Sampling on historical data, and simulations
+  cover cold start, delayed rewards and shifting conversion rates. Monitoring
+  tracks regret, allocation, latency and data drift.
 
-## Headline results
+## Results
 
-On two held-out weeks, after training on four weeks of logs from the old
-rule-based system (`reports/offer_backtest.md`):
+Trained on four weeks of logs from the old rule-based targeting, then run on two
+held-out weeks ([full backtest](reports/offer_backtest.md)):
 
-| Policy | Conversion | Revenue per user | vs rules |
-| --- | ---: | ---: | ---: |
-| Rule-based targeting (previous strategy) | 13.50% | 27.67 | baseline |
-| Thompson Sampling | **13.97%** | **31.10** | **+12.4%** revenue per user, +0.46 pts conversion |
+| Strategy | Conversion | Revenue per user |
+| --- | ---: | ---: |
+| Rule-based targeting (previous strategy) | 13.50% | 27.67 |
+| **Thompson Sampling** | **13.97%** | **31.10 (+12.4%)** |
 
-- **Offline evaluation agrees.** Doubly robust estimates of the frozen policy give
-  +0.28 pts conversion and +10.8% revenue per user, and the estimators land
-  within a few percent of the simulator's true values. The 95% intervals are wide,
-  because a new policy only overlaps with a slice of the old system's logs, and
-  the report says so.
-- **Policy comparison.** Random, greedy, UCB and Thompson Sampling were compared
-  on the same traffic and history. Greedy does well once it has the old system's
-  exploration data, but never tries a newly launched offer. Thompson Sampling and
-  UCB adapt to cold starts, delayed rewards and shifting conversion rates
-  (`reports/offer_scenarios.md`).
-- **Latency.** p99 decision latency is in single-digit milliseconds, in process
-  and over HTTP, against the 100 ms target (`reports/latency_benchmark.md`).
+| What | Result |
+| --- | --- |
+| Offline estimate (doubly robust) | +0.28 pts conversion, +10.8% revenue per user, within a few percent of the true values |
+| Decision latency | p99 of 5.84 ms in process and about 6 ms over HTTP, against a 100 ms target |
+| New offer launched mid-run | By the last quarter of the run, Thompson Sampling gives it 34% of traffic (best possible: 38%); greedy and the rules never try it |
+| Conversion rates shift mid-run | The rules lose 39,745 in revenue regret afterwards; UCB and Thompson Sampling lose about a quarter of that |
+
+> Outcomes come from a synthetic ground truth model, which is what lets every
+> offline estimate be checked against the real answer. These numbers show how the
+> policies compare in that world, not lift on a live business. The doubly robust
+> intervals are wide, and the [backtest report](reports/offer_backtest.md) shows
+> them.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    RAW[(users, sessions, purchases)] -->|SQL feature pipeline| SNAP[(daily user_features)]
+    RAW[(users, sessions, purchases)] -->|SQL feature pipeline| SNAP[(daily user features)]
     SNAP --> API[FastAPI /decide]
     API -->|Thompson Sampling| OFFER[offer + propensity]
-    FB[/feedback/] -->|online posterior update| API
+    FB[/feedback/] -->|update posterior| API
     OFFER & FB --> LOG[(decision and feedback logs)]
-    LOG --> RETRAIN[scheduled retrain + doubly robust gate]
+    LOG --> RETRAIN[nightly retrain + safety gate]
     RETRAIN -->|new model version| API
     LOG --> MON[monitoring: regret, allocation, latency, drift]
 ```
 
-| Piece | Where |
-| --- | --- |
-| Point-in-time SQL features over SQLite (history, device, geography, engagement, purchases) | `feature_sql.py`, `feature_store.py` |
-| Bayesian logistic Thompson Sampling with online Laplace updates, plus Beta-Bernoulli TS | `bayesian_policies.py` |
-| Random, rule-based, greedy and UCB baselines | `offer_policies.py` |
-| FastAPI service: decide, feedback, posterior, metrics, hot model reload | `offer_service.py`, `offer_api.py` |
-| Offline evaluation (IPS, SNIPS, doubly robust), replay, backtesting | `offer_backtest.py` |
-| Cold start, delayed reward and drift simulations | `offer_scenarios.py` |
-| Automated retraining with a promotion gate and model registry | `retraining.py`, `model_registry.py` |
-| Monitoring of regret, allocation, latency and data drift | `offer_monitoring.py` |
-| Docker image, plus Terraform for ECR, ECS Fargate, ALB, EFS, EventBridge and CloudWatch | `Dockerfile`, `infra/aws/` |
+1. **Features.** SQL rolls raw sessions, purchases and past offer responses into
+   one row per user each morning, counting only what happened before that moment.
+2. **Decision.** For each offer, the service samples a conversion rate from its
+   posterior, multiplies it by the offer's revenue, and shows the winner. Offers
+   the model is unsure about win some of the time, and that is how it explores.
+   A 5% uniform floor keeps every offer's logged propensity at 1% or more.
+3. **Learning.** Feedback updates the posterior right away. Each night,
+   retraining refits the model from the logs and promotes it only if offline
+   evaluation shows it is not worse than the rules or the current model.
+4. **Watching.** Monitoring compares this week with last week on latency, input
+   drift, offer mix, conversion, revenue and regret.
 
-The full design, including the update equations, is in
+The math, including the update equations, is in
 [docs/offer_recommendation.md](docs/offer_recommendation.md).
 
 ## Quickstart
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-make install
-make check                         # pytest and ruff
-make offer-smoke                   # exercise the API in process
-make offer-demo                    # regenerate every offer report (about 4 minutes)
+source .venv/bin/activate              # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+pytest -q                              # about 200 tests
+contextual-bandit-offer-service --smoke-test
 ```
 
-Run the service and try it:
+Run the service and ask it for an offer:
 
 ```bash
 contextual-bandit-offer-service --port 8000
 
 curl -s -X POST localhost:8000/decide -H 'Content-Type: application/json' \
   -d '{"user_id": "new-user", "device": "mobile", "region": "east"}'
-# {"event_id": "offer-...", "offer_id": "free_shipping", "propensity": 0.31, ...}
 
 curl -s -X POST localhost:8000/feedback -H 'Content-Type: application/json' \
-  -d '{"event_id": "offer-...", "converted": true}'
-# {"status": "accepted", "posterior_updated": true, ...}
+  -d '{"event_id": "<event_id from /decide>", "converted": true}'
 ```
 
-## Commands
+`/decide` returns the offer, its propensity and the posterior's expected
+conversion. `/feedback` updates the model and confirms it with
+`"posterior_updated": true`. `/metrics` reports p50, p95 and p99 latency.
+
+## Commands and reports
 
 | Command | What it does | Report |
 | --- | --- | --- |
-| `contextual-bandit-features` | Build the SQLite feature store and daily snapshots | `feature_pipeline_summary.md` |
-| `contextual-bandit-offers` | Compare all policies online from a cold start | `offer_policy_comparison.md` |
-| `contextual-bandit-backtest` | Train on history, evaluate offline, forward-simulate | `offer_backtest.md` |
-| `contextual-bandit-scenarios` | Cold start, delayed rewards, shifting rates | `offer_scenarios.md` |
-| `contextual-bandit-offer-service` | Serve the API (`--smoke-test` to check it) | |
-| `contextual-bandit-latency` | p50, p95 and p99 against the budget, in process or `--url` | `latency_benchmark.md` |
-| `contextual-bandit-retrain` | Ingest logs, refit, gate, promote (`--interval-minutes` to schedule) | `retraining_run.md` |
-| `contextual-bandit-monitor` | Regret, allocation, latency and drift from logs (or a drift demo) | `offer_monitoring_report.md` |
+| `contextual-bandit-features` | Build the SQLite feature store and daily snapshots | [feature_pipeline_summary.md](reports/feature_pipeline_summary.md) |
+| `contextual-bandit-offers` | Compare every policy learning from scratch | [offer_policy_comparison.md](reports/offer_policy_comparison.md) |
+| `contextual-bandit-backtest` | Train on history, evaluate offline, run forward | [offer_backtest.md](reports/offer_backtest.md) |
+| `contextual-bandit-scenarios` | Cold start, delayed rewards, shifting rates | [offer_scenarios.md](reports/offer_scenarios.md) |
+| `contextual-bandit-latency` | Latency against the 100 ms target, in process or `--url` | [latency_benchmark.md](reports/latency_benchmark.md) |
+| `contextual-bandit-retrain` | Ingest logs, refit, gate, promote; `--interval-minutes` to schedule | [retraining_run.md](reports/retraining_run.md) |
+| `contextual-bandit-monitor` | Regret, allocation, latency and drift from logs, or a drift demo | [offer_monitoring_report.md](reports/offer_monitoring_report.md) |
+| `contextual-bandit-offer-service` | Serve the API | |
 
-Reports are written to `reports/`, and JSON artifacts to `artifacts/`.
+`make offer-demo` regenerates all of these reports in about four minutes.
 
-## Docker and AWS
+## Project layout
 
-```bash
-make docker-build
-make docker-smoke                  # build, run, health check, decide and feedback
-
-cp infra/aws/terraform.tfvars.example infra/aws/terraform.tfvars   # set VPC and subnets
-make deploy-aws                    # push to ECR, terraform apply, health check, latency check
-make retrain-aws                   # run the retraining task now
+```text
+src/contextual_bandit_decision_ops/
+  feature_sql.py, feature_store.py      SQL feature pipeline over SQLite
+  offer_features.py, offers.py          user context, feature encoding, offer catalog
+  bayesian_policies.py                  Bayesian Thompson Sampling (logistic and Beta)
+  offer_policies.py                     random, rule-based, greedy and UCB baselines
+  offer_service.py, offer_api.py        FastAPI decision service
+  offer_backtest.py                     IPS, SNIPS, doubly robust, replay, backtesting
+  offer_scenarios.py                    cold start, delayed reward and drift simulations
+  retraining.py, model_registry.py      scheduled retraining and model versions
+  offer_monitoring.py                   regret, allocation, latency and drift checks
+infra/aws/                              Terraform: ECR, ECS Fargate, ALB, EFS, EventBridge, CloudWatch
+docker/, Dockerfile                     container image and entrypoint
 ```
 
-The container is configured through environment variables (`MODEL_ARTIFACT`,
-`FEATURE_STORE`, `MODEL_POLL_SECONDS`, `EXPLORATION_FLOOR` and others). On AWS,
-replicas share an EFS volume for the feature store, logs and model registry.
-EventBridge runs retraining nightly, and CloudWatch alarms on p99 latency over
-100 ms. See [infra/aws/README.md](infra/aws/README.md).
+## Deploy
 
-## Testing
+```bash
+make docker-build && make docker-smoke    # build, run, health check, decide and feedback
 
-`make check` runs about 200 pytest tests and ruff. The tests cover posterior
-updates (exact Beta counts, logit direction, covariance staying the inverse of
-precision, online and batch fits recovering a known model), point-in-time
-feature correctness, policy decisions and propensities, offline estimators
-against simulator truth, the API end to end, retraining, monitoring, and a full
-serve, retrain and hot-reload loop.
+cp infra/aws/terraform.tfvars.example infra/aws/terraform.tfvars   # add your VPC and subnets
+make deploy-aws                           # push to ECR, apply Terraform, check health and latency
+```
 
-## Foundations (release 0.1.0)
+On AWS the service runs on ECS Fargate behind a load balancer and scales on CPU.
+Replicas share an EFS volume for features, logs and models. EventBridge runs
+retraining every night, and CloudWatch alarms when p99 latency goes over 100 ms.
+Details are in [infra/aws/README.md](infra/aws/README.md).
 
-The project started as a general contextual bandit toolkit, which is still here
-and still tested: a three-action simulator, LinUCB and linear Thompson Sampling,
-replay, IPS, SNIPS and doubly robust estimators, safety-constrained promotion
-gates, a staging decision API and drift checks. `make demo` regenerates those
-reports. Start with the [0.1.0 release summary](reports/portfolio/release_0.1.0.md).
+## Tests
 
-| Document | Question it answers |
-| --- | --- |
-| [Offer recommendation design](docs/offer_recommendation.md) | How the offer system works, end to end |
-| [AWS deployment](infra/aws/README.md) | What runs where on AWS, and how to deploy it |
-| [Architecture](docs/architecture.md) | How the 0.1.0 toolkit's pieces connect |
-| [Evaluation methodology](docs/evaluation_methodology.md) | What the estimators and regret metrics mean |
-| [Policy card](docs/policy_card.md) | What the 0.1.0 policy may and may not be used for |
-| [Operations](docs/operations.md) | How the local and staging setup is run |
+`pytest -q` runs about 200 tests. They check that posteriors update correctly
+(exact Beta counts, logits moving the right way, covariance staying the inverse
+of precision, online and batch fits recovering a known model), that features
+never use future data, that policies choose and report propensities correctly,
+that the offline estimators land near the truth, and that the full loop of
+serving, retraining and hot reload works through the API.
 
 ## Limits
 
-- Outcomes are synthetic. The comparisons show relative behavior under a plausible
-  world, not real lift, which would need an online experiment.
-- SQLite is the feature store and event log. That's fine for a demo and modest
-  traffic; at scale it would be a warehouse or Aurora plus a log stream.
-- The Terraform passes `terraform validate` but hasn't been applied from this
+- Outcomes are simulated. Real lift would need an online A/B test.
+- SQLite is fine for a demo and modest traffic. At scale the features would live
+  in a warehouse or Aurora, and the logs in a stream such as Kinesis.
+- The Terraform passes `terraform validate` but has not been applied from this
   repository.
+
+## Earlier toolkit
+
+The repository grew out of a general contextual bandit toolkit (release 0.1.0):
+a three-action simulator, LinUCB and linear Thompson Sampling, off-policy
+estimators, promotion gates, a staging API and drift checks. It is still here and
+still tested; see the [0.1.0 summary](reports/portfolio/release_0.1.0.md) and
+[docs/architecture.md](docs/architecture.md).
 
 ## License
 
