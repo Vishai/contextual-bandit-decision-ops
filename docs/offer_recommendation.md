@@ -145,8 +145,9 @@ its propensity into `offer_events`. Random, greedy, UCB and Thompson Sampling
 are trained on the first four weeks and evaluated on the last two in three ways:
 
 1. **Off-policy estimates** of each frozen policy: IPS, SNIPS and doubly robust,
-   with paired bootstrap intervals on the lift over the rules. Each estimate is
-   checked against the simulator's true value.
+   with paired bootstrap intervals on the lift over the rules. The bootstrap
+   resamples users, not visits, since one user's visits are correlated. Each
+   estimate is checked against the simulator's true value.
 2. **Forward simulation**: each warm-started policy runs on the held-out visits
    and keeps learning online.
 3. **Replay** (Li et al., with propensity-based acceptance for non-uniform

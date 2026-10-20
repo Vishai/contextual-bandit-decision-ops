@@ -85,7 +85,8 @@ def render_report(run: BacktestRun) -> str:
             "",
             "### Lift over the rule-based strategy (doubly robust)",
             "",
-            "Intervals are 95% paired bootstrap intervals over held-out events.",
+            "Intervals are 95% paired bootstrap intervals that resample held-out users, "
+            "so a user's repeat visits count as one draw.",
             "",
             "| Policy | Conversion change (pts) | 95% interval | Revenue / user | Lift | 95% interval |",
             "| --- | ---: | ---: | ---: | ---: | ---: |",

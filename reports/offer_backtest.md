@@ -34,15 +34,15 @@ Each trained policy is frozen and scored on held-out logs it never saw.
 
 ### Lift over the rule-based strategy (doubly robust)
 
-Intervals are 95% paired bootstrap intervals over held-out events.
+Intervals are 95% paired bootstrap intervals that resample held-out users, so a user's repeat visits count as one draw.
 
 | Policy | Conversion change (pts) | 95% interval | Revenue / user | Lift | 95% interval |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| random | -5.00 | -6.14 to -3.92 | 18.16 | -34.2% | -42.9% to -24.3% |
+| random | -5.00 | -6.12 to -3.83 | 18.16 | -34.2% | -42.9% to -25.8% |
 | rule_based | +0.00 | baseline | 27.62 | +0.0% | baseline |
-| greedy | +1.18 | -1.58 to +4.15 | 31.27 | +13.2% | -9.9% to +36.6% |
-| ucb | -0.24 | -2.64 to +2.96 | 30.12 | +9.0% | -14.0% to +36.7% |
-| thompson_sampling | +0.28 | -1.91 to +2.42 | 30.60 | +10.8% | -8.5% to +35.0% |
+| greedy | +1.18 | -1.44 to +4.41 | 31.27 | +13.2% | -7.9% to +41.0% |
+| ucb | -0.24 | -2.79 to +2.59 | 30.12 | +9.0% | -14.1% to +31.4% |
+| thompson_sampling | +0.28 | -2.20 to +2.60 | 30.60 | +10.8% | -9.1% to +31.1% |
 
 ## Forward simulation after warm start
 
@@ -66,11 +66,11 @@ unbiased but uses only a few percent of the logs.
 
 | Policy | Accepted events | Conversion | Revenue / decision |
 | --- | ---: | ---: | ---: |
-| random | 1,092 | 7.69% | 3.031 |
-| rule_based | 1,115 | 13.81% | 5.593 |
-| greedy | 1,074 | 7.08% | 4.268 |
-| ucb | 1,067 | 11.34% | 4.989 |
-| thompson_sampling | 1,094 | 11.33% | 4.661 |
+| random | 1,047 | 9.07% | 3.181 |
+| rule_based | 1,135 | 13.66% | 5.377 |
+| greedy | 1,064 | 9.77% | 4.657 |
+| ucb | 1,043 | 10.26% | 5.125 |
+| thompson_sampling | 1,071 | 11.11% | 4.214 |
 
 ## Reading the results
 
