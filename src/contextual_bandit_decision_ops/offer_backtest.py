@@ -94,6 +94,12 @@ def _accepts_sample_count(policy: object) -> bool:
     return method is not None and "n_samples" in inspect.signature(method).parameters
 
 
+def _number(value: float | None) -> float:
+    """An estimate the data can't support comes back as NaN, never as a quiet zero,
+    so any gate comparing against it fails instead of passing on a fake number."""
+    return float("nan") if value is None else float(value)
+
+
 def target_probability_matrix(
     policy: OfferPolicy,
     events: Sequence[LoggedOfferEvent],
@@ -101,14 +107,18 @@ def target_probability_matrix(
     rng: np.random.Generator,
     n_samples: int = 500,
 ) -> np.ndarray:
-    """Probability the target policy would show each offer at each logged visit."""
+    """Probability the target policy would show each offer at each logged visit.
+
+    The policy only chooses among the offers that were available for that visit,
+    so offers the user could never have seen get probability zero.
+    """
     if not hasattr(policy, "action_probabilities"):
         raise ValueError(f"{policy.name} must expose action_probabilities")
     extra = {"n_samples": n_samples} if _accepts_sample_count(policy) else {}
     matrix = np.empty((len(events), len(offers)))
     for row, event in enumerate(events):
         probabilities = policy.action_probabilities(  # type: ignore[attr-defined]
-            event.context, offers, rng, **extra
+            event.context, event.offers(offers), rng, **extra
         )
         matrix[row] = [probabilities.get(offer_id, 0.0) for offer_id in offers]
     return matrix
@@ -212,19 +222,20 @@ def evaluate_offline(
             revenue, propensities, on_logged, revenue_model_value, logged_revenue_prediction
         )
         partial[policy.name] = {
-            "conversion_ips": estimate_ips(converted, propensities, on_logged).value or 0.0,
-            "conversion_snips": estimate_snips(converted, propensities, on_logged).value or 0.0,
-            "conversion_dr": estimate_doubly_robust(
-                converted,
-                propensities,
-                on_logged,
-                conversion_model_value,
-                logged_conversion_prediction,
-            ).value
-            or 0.0,
-            "revenue_ips": estimate_ips(revenue, propensities, on_logged).value or 0.0,
-            "revenue_snips": estimate_snips(revenue, propensities, on_logged).value or 0.0,
-            "revenue_dr": revenue_dr.value or 0.0,
+            "conversion_ips": _number(estimate_ips(converted, propensities, on_logged).value),
+            "conversion_snips": _number(estimate_snips(converted, propensities, on_logged).value),
+            "conversion_dr": _number(
+                estimate_doubly_robust(
+                    converted,
+                    propensities,
+                    on_logged,
+                    conversion_model_value,
+                    logged_conversion_prediction,
+                ).value
+            ),
+            "revenue_ips": _number(estimate_ips(revenue, propensities, on_logged).value),
+            "revenue_snips": _number(estimate_snips(revenue, propensities, on_logged).value),
+            "revenue_dr": _number(revenue_dr.value),
             "effective_sample_size": revenue_dr.effective_sample_size or 0.0,
             "true_conversion": (
                 float((target * true_rates).sum(axis=1).mean()) if true_rates is not None else None
@@ -279,7 +290,7 @@ def replay_learning_policies(
         accepted = conversions = 0
         revenue = 0.0
         for event in events:
-            choice = policy.choose(event.context, offers, rng)
+            choice = policy.choose(event.context, event.offers(offers), rng)
             if choice != event.offer_id:
                 continue
             if rng.random() >= minimum_propensity / event.propensity:

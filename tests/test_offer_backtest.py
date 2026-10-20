@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from contextual_bandit_decision_ops.offer_backtest import (
     target_probability_matrix,
     train_on_history,
 )
+from contextual_bandit_decision_ops.offer_features import new_user_context
 from contextual_bandit_decision_ops.offer_history import (
     LoggedOfferEvent,
     load_logged_events,
@@ -186,3 +188,65 @@ def test_backtest_cli_writes_report(tmp_path: Path) -> None:
         assert heading in text
     payload = json.loads(artifact.read_text(encoding="utf-8"))
     assert payload["offline"]["thompson_sampling"]["effective_sample_size"] > 0
+
+
+def _restricted_history(available: tuple[str, ...], n: int = 3_000) -> list[LoggedOfferEvent]:
+    rng = np.random.default_rng(12)
+    context = new_user_context("u", "desktop", "north")
+    context = replace(context, days_since_last_purchase=10.0, purchases_90d=1,
+                      tenure_days=200.0, avg_order_value=60.0, revenue_90d=60.0)
+    logging_policy = EpsilonExplorationPolicy(RuleBasedOfferPolicy(CATALOG), CATALOG, 0.2)
+    events = []
+    for i in range(n):
+        probabilities = logging_policy.action_probabilities(context, available)
+        offer_id = logging_policy.choose(context, available, rng)
+        converted = bool(rng.random() < TRUTH.conversion_probability(context, offer_id))
+        events.append(LoggedOfferEvent(
+            event_id=f"r{i}", decided_at=ACTIVITY.start + timedelta(minutes=i), context=context,
+            offer_id=offer_id, policy_name=logging_policy.name,
+            propensity=probabilities[offer_id], converted=converted,
+            revenue=CATALOG.revenue(offer_id) if converted else 0.0,
+            available_offers=available,
+        ))
+    return events
+
+
+def test_offline_evaluation_respects_the_offers_that_were_available() -> None:
+    available = ("pct10_discount", "free_shipping")
+    events = _restricted_history(available)
+    rules = RuleBasedOfferPolicy(CATALOG)
+    assert rules.choose(events[0].context, CATALOG.offer_ids, np.random.default_rng(0)) == (
+        "loyalty_points"
+    )
+    matrix = target_probability_matrix(rules, events[:5], OFFERS, np.random.default_rng(0))
+    assert set(np.nonzero(matrix[0])[0]) <= {OFFERS.index(o) for o in available}
+
+    reward_model = train_on_history(BayesianLogisticThompsonSampling(CATALOG), events)
+    estimate = evaluate_offline([rules], events, reward_model, CATALOG, np.random.default_rng(1),
+                                truth=TRUTH, bootstrap_samples=10)["rule_based"]
+    assert estimate.effective_sample_size > 1_000
+    assert estimate.conversion_snips == pytest.approx(estimate.true_conversion, abs=0.02)
+
+    replay = replay_learning_policies([lambda: RuleBasedOfferPolicy(CATALOG)], events, CATALOG,
+                                      minimum_propensity=0.1, rng=np.random.default_rng(2))
+    assert replay["rule_based"].accepted_events > 100
+
+
+def test_unsupported_estimates_are_nan_not_zero(history: list[LoggedOfferEvent]) -> None:
+    only_bundle = FixedBundlePolicy()
+    rarely_logged = [e for e in history if e.offer_id != "bundle_deal"][:200]
+    estimate = evaluate_offline([only_bundle], rarely_logged, BayesianLogisticThompsonSampling(CATALOG),
+                                CATALOG, np.random.default_rng(0), bootstrap_samples=5)["fixed"]
+    assert np.isnan(estimate.conversion_snips)
+    assert np.isnan(estimate.revenue_snips)
+    assert estimate.effective_sample_size == 0.0
+
+
+class FixedBundlePolicy:
+    name = "fixed"
+
+    def choose(self, context, offers, rng):
+        return "bundle_deal"
+
+    def action_probabilities(self, context, offers, rng=None):
+        return {offer: float(offer == "bundle_deal") for offer in offers}

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS offer_events (
     policy_name TEXT NOT NULL,
     propensity REAL NOT NULL CHECK (propensity > 0 AND propensity <= 1),
     context_json TEXT NOT NULL,
+    available_offers TEXT,
     converted INTEGER CHECK (converted IN (0, 1)),
     revenue REAL,
     feedback_at TEXT
@@ -162,6 +163,10 @@ class FeatureStore:
 
     def create_schema(self) -> None:
         self.connection.executescript(SCHEMA_SQL)
+        columns = {row[1] for row in self.connection.execute("PRAGMA table_info(offer_events)")}
+        if "available_offers" not in columns:
+            # Stores created before this column existed: NULL means the full catalog.
+            self.connection.execute("ALTER TABLE offer_events ADD COLUMN available_offers TEXT")
         self.connection.commit()
 
     def add_users(self, users: Iterable[UserRecord]) -> int:
@@ -221,12 +226,13 @@ class FeatureStore:
         offer_id: str,
         policy_name: str,
         propensity: float,
+        available_offers: Sequence[str] | None = None,
         commit: bool = True,
     ) -> None:
         self.connection.execute(
             "INSERT INTO offer_events "
-            "(event_id, user_id, decided_at, offer_id, policy_name, propensity, context_json) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "(event_id, user_id, decided_at, offer_id, policy_name, propensity, context_json, "
+            "available_offers) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 event_id,
                 context.user_id,
@@ -235,6 +241,7 @@ class FeatureStore:
                 policy_name,
                 propensity,
                 json.dumps(context.to_dict(), sort_keys=True),
+                json.dumps(list(available_offers)) if available_offers is not None else None,
             ),
         )
         if commit:

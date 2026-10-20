@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -25,6 +26,13 @@ class LoggedOfferEvent:
     propensity: float
     converted: bool
     revenue: float
+    available_offers: tuple[str, ...] | None = None
+    """Offers the user could have been shown. None means the whole catalog."""
+
+    def offers(self, catalog_offers: Sequence[str]) -> tuple[str, ...]:
+        if self.available_offers is None:
+            return tuple(catalog_offers)
+        return tuple(o for o in catalog_offers if o in self.available_offers)
 
 
 def log_historical_decisions(
@@ -75,6 +83,7 @@ def log_historical_decisions(
                 offer_id=offer_id,
                 policy_name=logging_policy.name,
                 propensity=probabilities[offer_id],
+                available_offers=offers,
                 commit=False,
             )
             store.record_offer_feedback(
@@ -90,7 +99,8 @@ def log_historical_decisions(
 
 
 LOGGED_EVENTS_QUERY = """
-SELECT event_id, decided_at, offer_id, policy_name, propensity, context_json, converted, revenue
+SELECT event_id, decided_at, offer_id, policy_name, propensity, context_json,
+       available_offers, converted, revenue
 FROM offer_events
 WHERE converted IS NOT NULL
   AND decided_at >= :start
@@ -122,6 +132,9 @@ def load_logged_events(
             propensity=float(row["propensity"]),
             converted=bool(row["converted"]),
             revenue=float(row["revenue"]),
+            available_offers=(
+                tuple(json.loads(row["available_offers"])) if row["available_offers"] else None
+            ),
         )
         for row in rows
     ]
