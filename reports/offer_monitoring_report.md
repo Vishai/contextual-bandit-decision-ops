@@ -6,7 +6,7 @@
 
 | Check | Status | Detail |
 | --- | --- | --- |
-| latency_p99 | ok | p99 1.51 ms against a 100 ms budget |
+| latency_p99 | ok | p99 1.10 ms against a 100 ms budget |
 | latency_budget_rate | ok | 100.00% of decisions inside the budget |
 | feature_drift | ALERT | 4 of 14 features shifted (engagement_score, sessions_30d, tenure_days, device); largest is device at TVD 0.201 |
 | allocation_shift | WARN | total variation 0.191 between the offer mixes |
@@ -30,9 +30,9 @@
 | Revenue / decision | 5.401 | 4.798 |
 | Feedback coverage | 100.0% | 100.0% |
 | Exploration rate | 5.0% | 5.0% |
-| Decision latency p50 ms | 0.38 | 0.39 |
-| Decision latency p95 ms | 0.63 | 0.78 |
-| Decision latency p99 ms | 0.86 | 1.51 |
+| Decision latency p50 ms | 0.39 | 0.39 |
+| Decision latency p95 ms | 0.65 | 0.72 |
+| Decision latency p99 ms | 0.84 | 1.10 |
 | Minimum propensity | 0.0100 | 0.0100 |
 | Regret / decision, model estimate | 0.738 | 0.410 |
 | Regret / decision, true (simulation only) | 0.583 | 1.839 |
@@ -75,16 +75,16 @@ only a few hundred decisions per window a value near 0.1 can be noise.
 | Feature | Statistic | Value | Status |
 | --- | --- | ---: | --- |
 | device | TVD | 0.201 | ALERT |
-| sessions_30d | PSI | 0.182 | WARN |
-| tenure_days | PSI | 0.166 | WARN |
-| engagement_score | PSI | 0.119 | WARN |
+| sessions_30d | PSI | 0.174 | WARN |
+| tenure_days | PSI | 0.165 | WARN |
+| engagement_score | PSI | 0.115 | WARN |
 | has_purchased | TVD | 0.090 | ok |
-| revenue_90d | PSI | 0.079 | ok |
-| sessions_7d | PSI | 0.067 | ok |
+| revenue_90d | PSI | 0.078 | ok |
+| purchases_90d | PSI | 0.074 | ok |
+| sessions_7d | PSI | 0.070 | ok |
+| avg_order_value | PSI | 0.065 | ok |
 | region | TVD | 0.065 | ok |
-| purchases_90d | PSI | 0.065 | ok |
-| avg_order_value | PSI | 0.063 | ok |
-| days_since_last_visit | PSI | 0.018 | ok |
+| days_since_last_visit | PSI | 0.017 | ok |
 | offer_impressions_30d | PSI | 0.000 | ok |
 | offer_conversions_30d | PSI | 0.000 | ok |
 | feature_source | TVD | 0.000 | ok |
