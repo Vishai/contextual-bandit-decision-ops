@@ -110,7 +110,9 @@ def population_stability_index(
 
     Under 0.1 is usually read as stable, 0.1 to 0.25 as a moderate shift, and above
     0.25 as a large one. Repeated values (lots of zero counts) collapse into fewer
-    bins rather than producing empty ones.
+    bins rather than producing empty ones. Bins are closed on the right, so a value
+    equal to an edge stays in the lower bin and a big point mass at zero gets a bin
+    of its own instead of merging with everything above it.
     """
     reference_values = np.asarray(reference, dtype=float)
     current_values = np.asarray(current, dtype=float)
@@ -118,8 +120,8 @@ def population_stability_index(
         raise ValueError("both samples need at least one value")
     edges = np.unique(np.quantile(reference_values, np.linspace(0, 1, bins + 1)[1:-1]))
     n_bins = len(edges) + 1
-    reference_bins = np.bincount(np.searchsorted(edges, reference_values, "right"), minlength=n_bins)
-    current_bins = np.bincount(np.searchsorted(edges, current_values, "right"), minlength=n_bins)
+    reference_bins = np.bincount(np.searchsorted(edges, reference_values, "left"), minlength=n_bins)
+    current_bins = np.bincount(np.searchsorted(edges, current_values, "left"), minlength=n_bins)
     epsilon = 1e-4
     reference_share = np.maximum(reference_bins / reference_values.size, epsilon)
     current_share = np.maximum(current_bins / current_values.size, epsilon)

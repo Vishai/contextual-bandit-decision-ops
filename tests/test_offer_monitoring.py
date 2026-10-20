@@ -213,3 +213,12 @@ def test_monitor_cli_without_decisions(tmp_path: Path) -> None:
     (tmp_path / "decisions.jsonl").write_text("", encoding="utf-8")
     assert monitor_main(["--decision-log", str(tmp_path / "decisions.jsonl"),
                          "--report-md", str(tmp_path / "r.md")]) == 2
+
+
+def test_psi_sees_shifts_in_mostly_zero_features() -> None:
+    reference = [0.0] * 950 + [1.0] * 50
+    current = [0.0] * 500 + [1.0] * 500
+    assert population_stability_index(reference, current) > 0.5
+    assert population_stability_index(reference, list(reference)) == pytest.approx(0.0)
+    capped = [5.0] * 900 + [1.0] * 100
+    assert population_stability_index(capped, [5.0] * 500 + [1.0] * 500) > 0.5
